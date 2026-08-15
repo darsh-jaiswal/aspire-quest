@@ -59,17 +59,16 @@ npm run dev
 | `npm run db:push` | Push the schema to the database |
 | `npm run db:studio` | Drizzle Studio |
 
-### Required before the app can persist anything
+### Environment status
 
 The public site renders without any environment at all — including on Vercel, where `src/proxy.ts` skips Clerk entirely when its keys are absent. (Without that guard the proxy throws `Missing publishableKey` on every request and takes the public pages down with it; development tolerates missing keys and hides this, production does not.) `/admin` and `/portal` still refuse to render, which is the intended direction.
 
-The three intake forms need a database:
+1. ✅ **Neon**, via the Vercel Marketplace → `DATABASE_URL` — provisioned, schema pushed (`neon-erin-mountain`), set on Production/Preview/Development automatically by the integration
+2. ⬜ **Vercel Blob**, private store → `BLOB_READ_WRITE_TOKEN` — resume upload will fail until this exists
+3. ⬜ **Upstash Redis** via the Marketplace → `UPSTASH_REDIS_REST_*` — public forms reject in production without it (see `src/lib/rate-limit.ts`; fails **closed**, on purpose)
+4. ⬜ **Clerk** → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` — `/admin` and `/portal` return 500 until this exists
 
-1. **Neon** via the Vercel Marketplace → `DATABASE_URL` (must contain `-pooler`)
-2. **Vercel Blob**, private store → `BLOB_READ_WRITE_TOKEN`
-3. **Upstash Redis** via the Marketplace → `UPSTASH_REDIS_REST_*`
-
-Then `npm run db:push`.
+Local dev picks these up from `.env.local` (pulled via `vercel env pull .env.local`, gitignored). After a fresh `db:push` against a new database, run it non-interactively with `npm run db:push -- --force` if there's no TTY (CI, an agent) — safe on an empty database; there is nothing to lose data from yet.
 
 ---
 
@@ -120,11 +119,11 @@ The shipped CSP (`next.config.ts`) is the strictest *static-compatible* version:
 
 | Step | State |
 |---|---|
-| 1. Scaffold | Done — Vercel project not yet linked |
+| 1. Scaffold | Done — Vercel project linked, Git-connected, auto-deploys on push to `main` |
 | 2. Design tokens | Done |
-| 3. Schema & migrations | Done — `drizzle/0000_init.sql`, 9 tables. Not yet pushed (no database) |
+| 3. Schema & migrations | Done — `drizzle/0000_init.sql`, 9 tables, pushed to Neon (`neon-erin-mountain`) |
 | 4. Public marketing site | Done |
-| 5. Public intake forms | Done — student, partner, alumni. Cannot persist until the DB exists |
+| 5. Public intake forms | Done — student, partner, alumni. Database is live; resume upload still needs `BLOB_READ_WRITE_TOKEN` |
 | 6. Admin console | Done — screening, pipeline, bundles, alumni, audit, CSV in/out. Needs Clerk keys to run |
 | 7. Recruiter portal | Done — released sets, candidate review, interest marks, notes, resume reads. Needs Clerk keys to run |
 | 8. Harden & verify | Partial — headers, validation/CSV/policy/interest tests done. E2E covers the public site, console fail-closed behaviour and the registration form's static contract (`npm run test:e2e`). Full-submission E2E, load and Lighthouse outstanding — the former needs Blob + a database configured |
