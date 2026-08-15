@@ -1,6 +1,7 @@
 import { About } from "@/components/home/About";
 import { Faq } from "@/components/home/Faq";
 import { Hero } from "@/components/home/Hero";
+import { Masthead } from "@/components/home/Masthead";
 import { Pathways } from "@/components/home/Pathways";
 import { Process } from "@/components/home/Process";
 import { Proof } from "@/components/home/Proof";
@@ -24,6 +25,7 @@ export default function HomePage() {
       <SiteHeader />
 
       <main id="main">
+        <Masthead />
         <Hero />
         <About />
         <Proof />

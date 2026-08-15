@@ -86,7 +86,12 @@ export function Proof() {
             </p>
           </div>
 
-          <div className="lg:col-span-8">
+          {/* min-w-0 is load-bearing: a grid item defaults to min-width:auto,
+              so without it this column refuses to shrink below the table's
+              34rem minimum and pushes the whole page into horizontal scroll on
+              a phone. The overflow-x-auto below can only scroll once its
+              parent is allowed to be narrower than its content. */}
+          <div className="min-w-0 lg:col-span-8">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[34rem] border-collapse text-left">
                 <caption className="sr-only">

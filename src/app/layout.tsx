@@ -3,12 +3,15 @@ import { Inter } from "next/font/google";
 import { DESCRIPTION, SITE, TAGLINE } from "@/lib/content";
 import "./globals.css";
 
-/* Two weights only — hierarchy comes from scale and tracking, not a weight
-   ladder. See globals.css § Type. */
+/* Two text weights — hierarchy comes from scale and tracking, not a weight
+   ladder. See globals.css § Type.
+   800 is the one exception, loaded solely for the masthead wordmark, where the
+   letterforms are the artwork rather than a heading. It is not available to
+   body copy by convention. */
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "600"],
+  weight: ["400", "600", "800"],
   display: "swap",
 });
 

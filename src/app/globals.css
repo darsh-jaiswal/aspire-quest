@@ -1,43 +1,69 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Aspire Quest — "Corporate Institutional"
+   Aspire Quest — "Institutional Monochrome"
 
    An official university placement platform. It has to read as credible to a
    recruiter from Deloitte, Oracle or L&T, and it has to stay legible on a
    projector in a placement office.
 
    Discipline over decoration: structure comes from thin rules and whitespace,
-   never from card soup or drop shadows. One accent colour, used semantically.
-   Committed to light mode — painted explicitly, never inherited.
+   never from card soup or drop shadows. Committed to light mode — painted
+   explicitly, never inherited.
+
+   THE PALETTE IS BLACK AND WHITE, AND THE ACCENT IS INVERSION.
+   There is no hue to spend, so emphasis is carried by contrast instead: the
+   one primary action per screen is a solid ink block on paper, and everything
+   secondary is paper with a hairline. Where the old palette used amber to say
+   "this one matters", this one flips the fill.
+
+   The token NAMES are kept from the previous navy/amber system on purpose.
+   They are referenced across roughly forty components, and renaming them would
+   turn a palette change into a site-wide rewrite with a much larger blast
+   radius. The names are semantic slots; only their values changed.
    ========================================================================== */
 
 @theme {
   /* Surface + ink ------------------------------------------------------- */
-  --color-surface: #ffffff;
-  --color-raised: #f7f9fb;
-  --color-sunken: #eef2f6;
-  --color-hairline: #e3e8ef;
-  --color-hairline-strong: #cbd4e1;
+  /* Not #fff on #000: pure black on pure white vibrates on a projector and is
+     tiring to read at length. Both ends are pulled a few points inward. */
+  --color-surface: #f7f7f4;
+  --color-raised: #efefea;
+  --color-sunken: #e5e5df;
+  --color-hairline: #dededa;
+  --color-hairline-strong: #bcbcb6;
 
-  /* Primary — navy carries every heading, the nav and the primary button. */
-  --color-navy: #0b2545;
-  --color-navy-hover: #103158;
-  --color-navy-soft: #1d3f66;
+  /* The two poles, named for what they are. Used directly by the masthead. */
+  --color-ink: #0d0d0d;
+  --color-paper: #f7f7f4;
+
+  /* Primary — carries every heading, the nav and the primary button.
+     (Formerly navy.) */
+  --color-navy: #0d0d0d;
+  --color-navy-hover: #2b2b28;
+  --color-navy-soft: #3a3a37;
 
   /* Body text */
-  --color-slate: #3d4a5c;
-  --color-muted: #6b7a8f;
+  --color-slate: #383835;
+  --color-muted: #6e6e69;
 
-  /* The single accent. Amber earns its use: live status and the one primary
-     CTA. It is never decorative. */
-  --color-amber: #c77d02;
-  --color-amber-hover: #a96903;
-  --color-amber-wash: #fdf6e7;
+  /* The accent slot. In a monochrome system the emphatic fill IS the accent,
+     so this resolves to ink and the primary button becomes a solid block. */
+  --color-amber: #0d0d0d;
+  --color-amber-hover: #2b2b28;
+  --color-amber-wash: #e5e5df;
 
-  /* Semantic status */
-  --color-positive: #1f6b45;
-  --color-critical: #a32c1f;
+  /* Semantic status.
+     Monochrome removes hue as a signal, so these must never be the ONLY
+     signal — every success and error state in this app already pairs its
+     colour with wording (see the form field components), which is the
+     stronger WCAG position regardless of palette. */
+  --color-positive: #0d0d0d;
+  --color-critical: #0d0d0d;
+
+  /* Focus ring colour, overridable per section so the ring stays visible on
+     the ink-on-paper masthead as well as on paper-on-ink body sections. */
+  --color-focus: #0d0d0d;
 
   /* Type — Inter, two weights (400 / 600). Hierarchy comes from scale and
      tracking, not from a weight ladder. */
@@ -150,7 +176,7 @@ time,
    -------------------------------------------------------------------------- */
 
 :focus-visible {
-  outline: 2px solid var(--color-amber);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }

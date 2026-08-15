@@ -55,3 +55,34 @@ test("no-access page renders standalone (no console chrome)", async ({
   const response = await page.goto("/no-access");
   expect(response?.status()).toBe(200);
 });
+
+/**
+ * Horizontal overflow.
+ *
+ * Added after a real one: the placements table carries `min-w-[34rem]`, and
+ * its grid column defaulted to `min-width: auto`, so on a phone the column
+ * refused to shrink and pushed the whole document sideways. The
+ * `overflow-x-auto` wrapper could not help, because its parent was already too
+ * wide. Wide content must scroll inside its own container, never the body.
+ */
+for (const [label, width] of [
+  ["small phone", 320],
+  ["phone", 390],
+  ["tablet", 768],
+  ["laptop", 1280],
+] as const) {
+  test(`no horizontal page scroll at ${label} (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+
+    const overflows = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    );
+
+    expect(overflows).toBe(false);
+  });
+}

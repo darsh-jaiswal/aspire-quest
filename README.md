@@ -72,19 +72,31 @@ Local dev picks these up from `.env.local` (pulled via `vercel env pull .env.loc
 
 ---
 
-## Design direction — Corporate Institutional
+## Design direction — Institutional Monochrome
 
-Light, disciplined, Swiss-grid. It must read as an official university placement platform and stay legible on a projector in a placement office.
+Disciplined, Swiss-grid, and **black and white**. It must read as an official university placement platform and stay legible on a projector in a placement office.
 
-- Navy `#0B2545` carries headings, nav and primary buttons
-- **One** accent, amber `#C77D02`, used semantically — live status and the single primary CTA per page. Never decorative. If two amber buttons share a screen, one is wrong.
+- **The palette has no hue, so the accent is inversion.** The one primary action per screen is a solid ink block on paper; everything secondary is paper with a hairline. Where the previous navy/amber system used colour to say "this one matters", this one flips the fill.
+- Ink `#0D0D0D` on paper `#F7F7F4` — not `#000` on `#FFF`, which vibrates on a projector and is tiring to read at length
 - Structure comes from thin rules and whitespace, never drop shadows or card grids
-- Inter, **two weights only** (400/600) — hierarchy from scale and tracking
+- Inter, **two text weights** (400/600) — hierarchy from scale and tracking. 800 exists solely for the masthead wordmark, where the letterforms are artwork rather than a heading, and is not for body copy.
 - Tabular figures anywhere a number is presented as data
 - Uniform 4px radius
-- **Committed to light mode**, painted explicitly on `body`
+- **Committed to light mode** for the body, painted explicitly; the masthead is the one deliberately dark surface
 
-Tokens live in `src/app/globals.css` under `@theme`. No hardcoded hex in components.
+Tokens live in `src/app/globals.css` under `@theme`. No hardcoded hex in components. The token *names* still read `navy` / `amber` from the previous palette — they are referenced across roughly forty components and renaming them would turn a palette change into a site-wide rewrite. They are semantic slots; only their values changed.
+
+Because hue is gone, **status must never be carried by colour alone.** Every success and error state pairs its treatment with wording, which is the stronger WCAG position regardless of palette.
+
+### The masthead
+
+The first screen is the only place on the site that spends any ink on spectacle. Three layers:
+
+1. **`MarkField`** — the fest's logo multiplied into a grid, every triangle turning to face the pointer. Texture, not subject. All the maths and DOM writes happen once per frame in a `requestAnimationFrame` callback, and the only thing written is a custom property driving a `rotate()`, so it stays on the compositor.
+2. **`AmbioraObject`** — the same mark built in three dimensions and draggable, lit by three hand-placed lights rather than an HDR environment map, because the CSP allows no external origins.
+3. **The wordmark**, set large along the bottom edge and cropped, so the screen reads as a fragment of something bigger than the viewport.
+
+The masthead is deliberately **not** an `<h1>`. The page's one first-level heading belongs to the section below it, which carries the actual proposition.
 
 Ambiora '27's creative theme is undecided, so palette, accent and the hero slot are swappable without a redesign.
 
@@ -100,6 +112,18 @@ This holds student PII (name, email, phone, **CGPA**) and resumes. Under the DPD
 - **Validation**: Zod at every boundary (`src/lib/validation.ts`). Drizzle parameterized queries only.
 - **Rate limiting** on all three public forms, plus honeypot fields. Fails **closed** in production.
 - **Consent** is explicit and timestamped at registration.
+
+### Known cost: three.js on the masthead
+
+The draggable mark is real WebGL, and three.js is **229 KB gzipped** in its own chunk — well past the 150 KB landing-page JS budget this project otherwise works to. That budget is recorded here as broken rather than quietly dropped.
+
+What keeps it defensible:
+
+- The chunk is **code-split and lazy**, reached only through `next/dynamic` with `ssr: false`. It is not in the initial payload, `/` still prerenders as static, and nothing above the fold waits on it.
+- It never loads at all on a **coarse pointer** (a phone, where the drag has little to offer and the frame cost lands hardest) or under **`prefers-reduced-motion`**.
+- Machines without WebGL fall through to the flat SVG mark.
+
+So the budget holds for first paint and for every phone; it is desktop enhancement that exceeds it. Revisit if the masthead ever stops earning that.
 
 ### Known gap: CSP is not nonce-based
 
