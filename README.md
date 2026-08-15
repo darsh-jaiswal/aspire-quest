@@ -60,7 +60,9 @@ npm run dev
 
 ### Required before the app can persist anything
 
-The public site renders without any environment at all. The three intake forms need a database:
+The public site renders without any environment at all — including on Vercel, where `src/proxy.ts` skips Clerk entirely when its keys are absent. (Without that guard the proxy throws `Missing publishableKey` on every request and takes the public pages down with it; development tolerates missing keys and hides this, production does not.) `/admin` and `/portal` still refuse to render, which is the intended direction.
+
+The three intake forms need a database:
 
 1. **Neon** via the Vercel Marketplace → `DATABASE_URL` (must contain `-pooler`)
 2. **Vercel Blob**, private store → `BLOB_READ_WRITE_TOKEN`
