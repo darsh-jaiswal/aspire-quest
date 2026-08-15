@@ -21,18 +21,23 @@ export function SiteHeader() {
           className="group flex items-center gap-3"
           aria-label={`${SITE.name} — home`}
         >
-          {/* Shown whole, exactly as supplied. The asset carries a baked-in
-              black ground rather than transparency, so it sits on an ink block
-              that matches it — the mark itself is neither cropped, recoloured
-              nor knocked out, because altering an institutional mark is a
-              branding decision rather than a styling one. */}
+          {/* The asset carries a baked-in black ground rather than
+              transparency, so it cannot simply be placed on the light header —
+              it arrives as a black block. `invert` turns that ground white so
+              it disappears into the bar; `grayscale` runs FIRST because
+              inverting on its own flips the crest's red to cyan, which is both
+              off-brand and the one colour a monochrome palette cannot host.
+
+              This is a tonal negative of the supplied mark, not a crop: the
+              whole lockup is present. A light-ground or transparent asset from
+              the organiser would remove the need for the filter entirely. */}
           <Image
             src="/brand/nmims-logo.png"
             alt="NMIMS — Deemed to be University"
             width={281}
             height={118}
             priority
-            className="h-12 w-auto shrink-0 rounded-sm bg-ink"
+            className="h-12 w-auto shrink-0 [filter:grayscale(1)_invert(1)]"
           />
           <span className="flex flex-col leading-none">
             <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
