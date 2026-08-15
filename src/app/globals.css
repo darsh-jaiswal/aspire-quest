@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Aspire Quest — "Corporate Institutional"
+
+   An official university placement platform. It has to read as credible to a
+   recruiter from Deloitte, Oracle or L&T, and it has to stay legible on a
+   projector in a placement office.
+
+   Discipline over decoration: structure comes from thin rules and whitespace,
+   never from card soup or drop shadows. One accent colour, used semantically.
+   Committed to light mode — painted explicitly, never inherited.
+   ========================================================================== */
+
+@theme {
+  /* Surface + ink ------------------------------------------------------- */
+  --color-surface: #ffffff;
+  --color-raised: #f7f9fb;
+  --color-sunken: #eef2f6;
+  --color-hairline: #e3e8ef;
+  --color-hairline-strong: #cbd4e1;
+
+  /* Primary — navy carries every heading, the nav and the primary button. */
+  --color-navy: #0b2545;
+  --color-navy-hover: #103158;
+  --color-navy-soft: #1d3f66;
+
+  /* Body text */
+  --color-slate: #3d4a5c;
+  --color-muted: #6b7a8f;
+
+  /* The single accent. Amber earns its use: live status and the one primary
+     CTA. It is never decorative. */
+  --color-amber: #c77d02;
+  --color-amber-hover: #a96903;
+  --color-amber-wash: #fdf6e7;
+
+  /* Semantic status */
+  --color-positive: #1f6b45;
+  --color-critical: #a32c1f;
+
+  /* Type — Inter, two weights (400 / 600). Hierarchy comes from scale and
+     tracking, not from a weight ladder. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+
+  --text-display: clamp(2.5rem, 1.4rem + 4.6vw, 5.25rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.032em;
+
+  --text-h1: clamp(2rem, 1.4rem + 2.4vw, 3.25rem);
+  --text-h1--line-height: 1.08;
+  --text-h1--letter-spacing: -0.024em;
+
+  --text-h2: clamp(1.5rem, 1.2rem + 1.3vw, 2.125rem);
+  --text-h2--line-height: 1.15;
+  --text-h2--letter-spacing: -0.018em;
+
+  --text-h3: clamp(1.125rem, 1.05rem + 0.4vw, 1.3125rem);
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.011em;
+
+  --text-lede: clamp(1.0625rem, 1rem + 0.42vw, 1.3125rem);
+  --text-lede--line-height: 1.58;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1;
+  --text-eyebrow--letter-spacing: 0.13em;
+
+  /* Restraint is the point: one radius, everywhere. */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-lg: 4px;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+/* Painted explicitly. A recruitment platform does not want a dark default,
+   and it must not borrow the host's theme. */
+body {
+  margin: 0;
+  background-color: var(--color-surface);
+  color: var(--color-slate);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv05" 1, "ss01" 1;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-navy);
+  font-weight: 600;
+  text-wrap: balance;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   Numbers
+
+   Placement figures, CGPA, stipends and counts all sit in columns that must
+   align. Tabular lining figures everywhere a number is presented as data.
+   -------------------------------------------------------------------------- */
+
+.tabular,
+th,
+td,
+time,
+[data-figure] {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* --------------------------------------------------------------------------
+   Focus — a visible 2px ring, never removed.
+
+   Most students will register on a phone, but the admin console is driven by
+   keyboard. Focus visibility is not negotiable on an institutional property.
+   -------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Only suppress the ring for pointer users, never for keyboard. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   Selection
+   -------------------------------------------------------------------------- */
+
+::selection {
+  background-color: var(--color-navy);
+  color: var(--color-surface);
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion — honoured globally.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Print — placement offices print candidate lists.
+   -------------------------------------------------------------------------- */
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  [data-print-hide] {
+    display: none !important;
+  }
+}

@@ -1,0 +1,233 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Aspire Quest — "Platform Signage"
+   Vernacular borrowed from Indian transit signage: enamel station plates,
+   split-flap departure boards, painted line codes, punched card stock.
+   ========================================================================== */
+
+@theme {
+  /* Surface + ink ------------------------------------------------------- */
+  --color-concrete: #d9dcd4;
+  --color-concrete-deep: #c5c9bd;
+  --color-chalk: #f6f5ef;
+  --color-ink: #14150f;
+  --color-ink-soft: #55574b;
+  --color-ink-faint: #8b8d80;
+  --color-hairline: #b3b7a9;
+
+  /* Signal -------------------------------------------------------------- */
+  --color-marigold: #ffc12b;
+  --color-platform: #133a55;
+  --color-rust: #a8391f;
+  --color-moss: #1f5d3e;
+
+  /* Type ---------------------------------------------------------------- */
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --text-plate: clamp(2.75rem, 1.2rem + 7.4vw, 9rem);
+  --text-plate--line-height: 0.86;
+  --text-hero: clamp(2.25rem, 1.1rem + 5vw, 5.5rem);
+  --text-hero--line-height: 0.92;
+  --text-title: clamp(1.75rem, 1.1rem + 2.6vw, 3rem);
+  --text-title--line-height: 1;
+  --text-lede: clamp(1.0625rem, 1rem + 0.5vw, 1.375rem);
+  --text-lede--line-height: 1.5;
+
+  /* Motion -------------------------------------------------------------- */
+  --ease-plate: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-flap: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base ---------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-concrete);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Faint paper tooth over the whole page — keeps the concrete from reading
+   as flat digital grey. Non-interactive, sits above the background only. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin: 0;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Focus --------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 3px solid var(--color-platform);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-marigold);
+  color: var(--color-ink);
+}
+
+/* Utilities ------------------------------------------------------------ */
+
+@utility stack {
+  position: relative;
+  z-index: 1;
+}
+
+/* Enamel signage plate: the recurring structural device. Hard edge, hard
+   shadow, no blur — printed metal, not a floating card. */
+@utility plate {
+  border: 2px solid var(--color-ink);
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+
+@utility plate-sm {
+  border: 2px solid var(--color-ink);
+  box-shadow: 3px 3px 0 var(--color-ink);
+}
+
+/* Eyebrow: mono, tracked out, the label on every signage element. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+@utility rule-ticks {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-ink) 0 1px,
+    transparent 1px 8px
+  );
+}
+
+/* Scroll reveal -------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.7s var(--ease-plate),
+      transform 0.7s var(--ease-plate);
+  }
+
+  .reveal[data-shown="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Marquee -------------------------------------------------------------- */
+
+@keyframes rail-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.rail-track {
+  display: flex;
+  width: max-content;
+  animation: rail-scroll 46s linear infinite;
+}
+
+.rail:hover .rail-track,
+.rail:focus-within .rail-track {
+  animation-play-state: paused;
+}
+
+/* Split-flap ----------------------------------------------------------- */
+
+@keyframes flap-in {
+  0% {
+    transform: rotateX(-90deg);
+    opacity: 0;
+  }
+  60% {
+    transform: rotateX(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.flap {
+  display: inline-block;
+  transform-origin: center top;
+  backface-visibility: hidden;
+}
+
+[data-flapping="true"] .flap {
+  animation: flap-in 0.42s var(--ease-flap) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .rail-track {
+    animation: none;
+    transform: none;
+  }
+
+  [data-flapping="true"] .flap {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

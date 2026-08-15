@@ -1,0 +1,113 @@
+import "server-only";
+
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { cache } from "react";
+import { db } from "@/db";
+import { recruiterMemberships } from "@/db/schema";
+import { canActForCompany, type Role } from "./access-policy";
+
+/**
+ * Authorization.
+ *
+ * Middleware is a first gate and nothing more. Every page, Server Action and
+ * route handler that touches student data calls one of the `require*` helpers
+ * below — if a route is ever added without being added to the middleware
+ * matcher, it must still fail closed.
+ *
+ * Roles live in Clerk `publicMetadata.role`. Company membership does NOT: it
+ * lives in `recruiter_memberships` in our own database, because it decides
+ * which students a recruiter can see, and that decision should not be
+ * editable from an identity provider's dashboard.
+ *
+ * These use plain `redirect()` rather than Next's `forbidden()`/`unauthorized()`,
+ * which are experimental and require `experimental.authInterrupts`. The
+ * authorization path should not depend on an experimental flag.
+ */
+
+export type { Role };
+
+export type Actor = {
+  userId: string;
+  role: Role;
+  /** Companies this actor may act for. Always empty for admins. */
+  companyIds: readonly number[];
+};
+
+/** Thrown by the assert helpers used inside Server Actions, which cannot redirect mid-mutation. */
+export class AuthorizationError extends Error {
+  constructor(message = "You do not have access to that.") {
+    super(message);
+    this.name = "AuthorizationError";
+  }
+}
+
+function parseRole(value: unknown): Role | null {
+  return value === "admin" || value === "recruiter" ? value : null;
+}
+
+/**
+ * The signed-in actor, or null. Cached per request so a page that calls this
+ * from several components does not re-hit Clerk each time.
+ */
+export const getActor = cache(async (): Promise<Actor | null> => {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  const user = await currentUser();
+  const role = parseRole(user?.publicMetadata?.role);
+  if (!role) return null;
+
+  if (role === "admin") {
+    return { userId, role, companyIds: [] };
+  }
+
+  const memberships = await db
+    .select({ companyId: recruiterMemberships.companyId })
+    .from(recruiterMemberships)
+    .where(eq(recruiterMemberships.userId, userId));
+
+  return { userId, role, companyIds: memberships.map((m) => m.companyId) };
+});
+
+async function requireRole(role: Role): Promise<Actor> {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  const actor = await getActor();
+  // Signed in, but no role assigned or the wrong one.
+  if (!actor || actor.role !== role) redirect("/no-access");
+
+  return actor;
+}
+
+export function requireAdmin(): Promise<Actor> {
+  return requireRole("admin");
+}
+
+export function requireRecruiter(): Promise<Actor> {
+  return requireRole("recruiter");
+}
+
+/** Either role — for surfaces both can reach, such as a resume download. */
+export async function requireActor(): Promise<Actor> {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  const actor = await getActor();
+  if (!actor) redirect("/no-access");
+  return actor;
+}
+
+/**
+ * Assert an actor may act for a given company.
+ *
+ * Call this before any query keyed by a `companyId` that came from user input.
+ * Admins pass for every company; recruiters only for their own.
+ */
+export function assertCompanyAccess(actor: Actor, companyId: number): void {
+  if (!canActForCompany(actor, companyId)) {
+    throw new AuthorizationError("That company is not yours to view.");
+  }
+}
