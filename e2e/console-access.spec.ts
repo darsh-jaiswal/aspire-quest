@@ -1,30 +1,36 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * /admin and /portal with NO Clerk keys configured.
+ * /admin and /portal, unauthenticated.
  *
- * README, § Console access: "Without Clerk keys every /admin route returns
- * 500 rather than rendering. That is the intended failure direction; it is
- * not a bug." This test turns that sentence into something that breaks CI if
- * it ever stops being true — e.g. a future refactor that accidentally lets an
- * unauthenticated request through instead of failing closed.
+ * README, § Console access: without Clerk keys these return 500 rather than
+ * rendering ("not a bug"); WITH Clerk keys they redirect to sign-in instead.
+ * Either way, the one outcome that must never happen is the console
+ * content itself rendering to a signed-out visitor — so that is what these
+ * tests assert, rather than a specific status code that depends on which
+ * environment CI happens to run against.
  *
- * This suite intentionally runs with no DATABASE_URL / Clerk env present. If
- * that ever changes in CI, these two tests are the ones to revisit first —
- * they assert the NO-ENV failure mode, not the authenticated one.
+ * `page.goto` follows redirects, so `response.status()` reflects wherever the
+ * browser ends up — the sign-in page (200) when Clerk is configured, or the
+ * failed route itself (500) when it is not. Checking the final content and
+ * URL, not the status code, is what stays correct across both states.
  */
 
 for (const path of ["/admin", "/portal"]) {
-  test(`${path} fails closed (never renders) with no auth configured`, async ({
+  test(`${path} never renders console content to a signed-out visitor`, async ({
     page,
   }) => {
     const response = await page.goto(path);
 
-    // The one outcome that must never happen: a 200 with console content.
-    expect(response?.status()).not.toBe(200);
     await expect(
       page.getByRole("heading", { name: /overview|candidate sets/i }),
     ).toHaveCount(0);
+
+    // If it rendered at all (200), it must be the sign-in page, not the
+    // protected route responding as if the visitor were authenticated.
+    if (response?.status() === 200) {
+      expect(page.url()).toContain("/sign-in");
+    }
   });
 }
 
