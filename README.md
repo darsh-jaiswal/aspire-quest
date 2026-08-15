@@ -54,6 +54,7 @@ npm run dev
 | `npm test` | Vitest suite |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
+| `npm run test:e2e` | Playwright — public site, console fail-closed, form contracts |
 | `npm run db:generate` | Generate a migration from `src/db/schema.ts` |
 | `npm run db:push` | Push the schema to the database |
 | `npm run db:studio` | Drizzle Studio |
@@ -126,7 +127,7 @@ The shipped CSP (`next.config.ts`) is the strictest *static-compatible* version:
 | 5. Public intake forms | Done — student, partner, alumni. Cannot persist until the DB exists |
 | 6. Admin console | Done — screening, pipeline, bundles, alumni, audit, CSV in/out. Needs Clerk keys to run |
 | 7. Recruiter portal | Done — released sets, candidate review, interest marks, notes, resume reads. Needs Clerk keys to run |
-| 8. Harden & verify | Partial — headers, validation/CSV/policy/interest tests done. E2E, load and Lighthouse outstanding |
+| 8. Harden & verify | Partial — headers, validation/CSV/policy/interest tests done. E2E covers the public site, console fail-closed behaviour and the registration form's static contract (`npm run test:e2e`). Full-submission E2E, load and Lighthouse outstanding — the former needs Blob + a database configured |
 
 ## Console access
 
