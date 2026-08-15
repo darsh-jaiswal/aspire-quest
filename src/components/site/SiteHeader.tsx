@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -17,14 +18,24 @@ export function SiteHeader() {
       <Container className="flex h-[4.5rem] items-center justify-between gap-6">
         <Link
           href="/"
-          className="group flex flex-col leading-none"
+          className="group flex items-center gap-3"
           aria-label={`${SITE.name} — home`}
         >
-          <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
-            Aspire&nbsp;Quest
-          </span>
-          <span className="mt-1 text-[0.6875rem] tracking-wide text-muted">
-            {SITE.institution}
+          <Image
+            src="/brand/nmims-logo.png"
+            alt="NMIMS — Deemed to be University"
+            width={281}
+            height={118}
+            priority
+            className="h-8 w-auto rounded-sm bg-navy px-1.5 py-1"
+          />
+          <span className="flex flex-col leading-none">
+            <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
+              Aspire&nbsp;Quest
+            </span>
+            <span className="mt-1 text-[0.6875rem] tracking-wide text-muted">
+              {SITE.institution}
+            </span>
           </span>
         </Link>
 

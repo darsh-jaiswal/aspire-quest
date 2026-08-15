@@ -168,7 +168,7 @@ The actual decisions live in `src/lib/access-policy.ts` as pure functions with n
 
 - Ambiora '27 dates (the site ships date-driven and defaults to TBA)
 - Full-resolution photos from the RAW team, or an Instagram export
-- NMIMS logo/branding approval, and whether this lives on an `nmims.edu` subdomain or its own domain
+- Whether this lives on an `nmims.edu` subdomain or its own domain (logo use itself is now approved — see `public/brand/nmims-logo.png`, used in `SiteHeader`)
 - The alumni CSV and the Placement Cell recruiter list
 
 **Branding caution:** this is official-adjacent. Institutional logo use and any `nmims.edu` domain need campus sign-off before going public.
