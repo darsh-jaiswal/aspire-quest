@@ -21,14 +21,28 @@ export function SiteHeader() {
           className="group flex items-center gap-3"
           aria-label={`${SITE.name} — home`}
         >
-          <Image
-            src="/brand/nmims-logo.png"
-            alt="NMIMS — Deemed to be University"
-            width={281}
-            height={118}
-            priority
-            className="h-8 w-auto rounded-sm bg-navy px-1.5 py-1"
-          />
+          {/* The supplied asset is a wide lockup on a baked-in black ground:
+              crest, then a rule, then "Deemed to be UNIVERSITY". At header
+              height that trailing text is far too small to read, and it repeats
+              the institution line sitting immediately to its right — so the
+              lockup is cropped to the crest, which is the part that survives at
+              this size.
+
+              Cropped, not recoloured. The mark keeps its own colours and its
+              own black ground; altering an institutional mark is a branding
+              decision rather than a styling one. The proper fix is a
+              transparent, crest-only asset from the organiser — see § Blocked
+              on the organiser. */}
+          <span className="block h-11 w-11 shrink-0 overflow-hidden rounded-sm bg-ink">
+            <Image
+              src="/brand/nmims-logo.png"
+              alt="NMIMS — Deemed to be University"
+              width={281}
+              height={118}
+              priority
+              className="h-full w-auto max-w-none"
+            />
+          </span>
           <span className="flex flex-col leading-none">
             <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
               Aspire&nbsp;Quest

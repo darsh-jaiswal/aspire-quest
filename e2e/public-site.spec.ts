@@ -86,3 +86,32 @@ for (const [label, width] of [
     expect(overflows).toBe(false);
   });
 }
+
+/**
+ * Button contrast.
+ *
+ * Added after a real bug: `globals.css` defined `a { color: inherit }`
+ * unlayered, and an unlayered rule beats anything in `@layer utilities`
+ * regardless of specificity — so `text-white` on every link-shaped button was
+ * silently overridden. It went unnoticed for as long as the primary button was
+ * amber, because dark-on-amber still read as text, and became invisible the
+ * moment the palette went monochrome.
+ *
+ * Asserting the computed colours differ catches the whole class of "the label
+ * is the same colour as the button" without pinning either value.
+ */
+test("primary call to action does not render its label in the fill colour", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const cta = page.getByRole("link", { name: "Register as a student" });
+  await expect(cta).toBeVisible();
+
+  const { color, background } = await cta.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { color: style.color, background: style.backgroundColor };
+  });
+
+  expect(color).not.toBe(background);
+});
