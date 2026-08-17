@@ -22,7 +22,8 @@ export default function HomePage() {
         Skip to content
       </a>
 
-      <SiteHeader />
+      {/* The masthead is ink, and the header floats over it transparently. */}
+      <SiteHeader onDark />
 
       <main id="main">
         <Masthead />

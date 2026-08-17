@@ -24,7 +24,7 @@ export default function RegisterPage() {
     <>
       <SiteHeader />
 
-      <main id="main">
+      <main id="main" className="pt-[4.5rem]">
         <Container className="grid gap-14 py-16 md:py-24 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-4">
             <div className="lg:sticky lg:top-28">

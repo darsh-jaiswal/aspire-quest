@@ -1,77 +1,51 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SITE } from "@/lib/content";
 
-const NAV = [
-  { href: "/#about", label: "About" },
-  { href: "/#proof", label: "Track record" },
-  { href: "/#talent", label: "Talent pool" },
-  { href: "/#process", label: "Process" },
-  { href: "/#faq", label: "FAQ" },
-];
+/**
+ * The header is transparent and fixed, so it inherits whatever sits behind
+ * it. That makes the tone load-bearing rather than cosmetic: the home page
+ * floats it over the ink masthead, every other page over light surface. A
+ * single fixed colour would be invisible on one of the two.
+ */
+export function SiteHeader({ onDark = false }: { onDark?: boolean }) {
+  const wordmarkColor = onDark ? "text-paper" : "text-navy";
+  const captionColor = onDark ? "text-paper/60" : "text-muted";
 
-export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-hairline bg-surface/95 backdrop-blur-sm">
+    <header className="fixed inset-x-0 top-0 z-50 bg-transparent">
       <Container className="flex h-[4.5rem] items-center justify-between gap-6">
         <Link
           href="/"
           className="group flex items-center gap-3"
           aria-label={`${SITE.name} — home`}
         >
-          {/* The asset carries a baked-in black ground rather than
-              transparency, so it cannot simply be placed on the light header —
-              it arrives as a black block. `invert` turns that ground white so
-              it disappears into the bar; `grayscale` runs FIRST because
-              inverting on its own flips the crest's red to cyan, which is both
-              off-brand and the one colour a monochrome palette cannot host.
-
-              This is a tonal negative of the supplied mark, not a crop: the
-              whole lockup is present. A light-ground or transparent asset from
-              the organiser would remove the need for the filter entirely. */}
-          <Image
-            src="/brand/nmims-logo.png"
-            alt="NMIMS — Deemed to be University"
-            width={281}
-            height={118}
-            priority
-            className="h-12 w-auto shrink-0 [filter:grayscale(1)_invert(1)]"
-          />
           <span className="flex flex-col leading-none">
-            <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
+            <span
+              className={`text-[1.0625rem] font-semibold tracking-tight ${wordmarkColor}`}
+            >
               Aspire&nbsp;Quest
             </span>
-            <span className="mt-1 text-[0.6875rem] tracking-wide text-muted">
+            <span className={`mt-1 text-[0.6875rem] tracking-wide ${captionColor}`}>
               {SITE.institution}
             </span>
           </span>
         </Link>
 
-        <nav aria-label="Main navigation" className="hidden lg:block">
-          <ul className="flex items-center gap-8">
-            {NAV.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="relative py-2 text-sm text-slate transition-colors hover:text-navy after:absolute after:inset-x-0 after:-bottom-px after:h-px after:origin-left after:scale-x-0 after:bg-navy after:transition-transform after:duration-200 hover:after:scale-x-100 motion-reduce:after:transition-none"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
         <div className="flex items-center gap-3">
-          <Link
+          <ButtonLink
             href="/partners"
-            className="hidden text-sm font-semibold text-navy underline-offset-4 hover:underline sm:inline"
+            variant="gradient-soft"
+            className="hidden px-4 py-2.5 sm:inline-flex"
           >
             For recruiters
-          </Link>
-          <ButtonLink href="/register" variant="accent" className="px-4 py-2.5">
+          </ButtonLink>
+          <ButtonLink
+            href="/register"
+            variant={onDark ? "gradient-invert" : "gradient"}
+            className="px-4 py-2.5"
+          >
             Register
           </ButtonLink>
         </div>
