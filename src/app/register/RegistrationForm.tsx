@@ -1,6 +1,5 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
 import { useActionState, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -22,6 +21,50 @@ type UploadState =
   | { phase: "error"; message: string };
 
 const INITIAL: RegisterState = { status: "idle" };
+
+// Bytes go browser -> this function -> Blob, since a private Blob store
+// doesn't support the direct-to-Blob client-token flow (its CORS preflight
+// rejects the token PUT). fetch() has no upload-progress event, so this uses
+// XHR to keep the progress bar real.
+function uploadResume(
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const body = new FormData();
+    body.set("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/resume/upload");
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      let body: unknown;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        reject(new Error("Upload response was not valid JSON."));
+        return;
+      }
+
+      const parsed = body as { key?: string; error?: string };
+      if (xhr.status >= 200 && xhr.status < 300 && parsed.key) {
+        resolve(parsed.key);
+      } else {
+        reject(new Error(parsed.error ?? "Upload failed."));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during upload."));
+
+    xhr.send(body);
+  });
+}
 
 export function RegistrationForm() {
   const [state, formAction, pending] = useActionState(registerStudent, INITIAL);
@@ -52,21 +95,13 @@ export function RegistrationForm() {
     setFile({ phase: "uploading", percent: 0, name: selected.name });
 
     try {
-      const blob = await upload(selected.name, selected, {
-        access: "private",
-        handleUploadUrl: "/api/resume/upload",
-        contentType: "application/pdf",
-        onUploadProgress: ({ percentage }) =>
-          setFile({
-            phase: "uploading",
-            percent: Math.round(percentage),
-            name: selected.name,
-          }),
-      });
+      const key = await uploadResume(selected, (percent) =>
+        setFile({ phase: "uploading", percent, name: selected.name }),
+      );
 
       setFile({
         phase: "done",
-        key: blob.pathname,
+        key,
         name: selected.name,
         bytes: selected.size,
       });

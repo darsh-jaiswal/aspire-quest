@@ -1,19 +1,20 @@
 /**
- * Mints short-lived client tokens for direct-to-Blob resume uploads.
+ * Server-proxied resume uploads.
  *
- * The bytes go browser → Blob and never pass through a function, so a
- * registration surge costs no function bandwidth. The trade-off is that this
- * route is the ONLY gate on what gets written, so the constraints here are
- * load-bearing:
+ * Direct-to-Blob uploads from the browser (the `@vercel/blob/client` token
+ * flow) do not work against a *private* access store: the store's CORS
+ * preflight for the client-token PUT returns 403 and never allows the
+ * `authorization` header the SDK needs, so the browser blocks the upload
+ * before it's sent. Confirmed by hand against the live store — this isn't a
+ * config slip on our side, private stores just don't support that flow.
  *
- *   - PDF only, enforced by the token itself, not by client-side `accept`
- *   - 5 MB ceiling, enforced by the token
- *   - `addRandomSuffix` so the stored key is never the user's filename
- *   - private access — no public URL exists for any resume
- *   - rate limited, because minting tokens is otherwise free to an attacker
+ * So the bytes go browser → this function → Blob instead. That costs some
+ * function bandwidth per registration (capped at 5 MB), but keeps the
+ * resume genuinely private, which is the guarantee stated in the consent
+ * checkbox on the form.
  */
 
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { REGISTRATION } from "@/lib/content";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -34,33 +35,46 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const body = (await request.json()) as HandleUploadBody;
+  const form = await request.formData();
+  const file = form.get("file");
+
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "No file was received." }, { status: 400 });
+  }
+
+  if (!(REGISTRATION.resumeAcceptedTypes as readonly string[]).includes(file.type)) {
+    return NextResponse.json(
+      { error: `Your resume must be ${REGISTRATION.resumeAcceptedLabel}.` },
+      { status: 400 },
+    );
+  }
+
+  if (file.size > REGISTRATION.resumeMaxBytes) {
+    return NextResponse.json(
+      { error: `That file is over the ${REGISTRATION.resumeMaxLabel} limit.` },
+      { status: 400 },
+    );
+  }
 
   try {
-    const result = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [...REGISTRATION.resumeAcceptedTypes],
-        maximumSizeInBytes: REGISTRATION.resumeMaxBytes,
-        // Never trust the submitted filename as a storage key.
-        addRandomSuffix: true,
-        allowOverwrite: false,
-        // Token is single-use in practice; keep the window short.
-        validUntil: Date.now() + 10 * 60 * 1000,
-      }),
-      // Nothing to persist here: the blob key is attached to the student row
-      // by the registration Server Action, which is the transaction that
-      // actually matters.
-      onUploadCompleted: async () => {},
+    // Never trust the submitted filename as a storage key.
+    const blob = await put(file.name, file, {
+      access: "private",
+      addRandomSuffix: true,
+      allowOverwrite: false,
+      contentType: "application/pdf",
+      // Both VERCEL_OIDC_TOKEN and BLOB_STORE_ID are present in every
+      // environment, which makes the SDK prefer OIDC auth — but OIDC isn't
+      // enabled for "development" on this project, so pin the RW token.
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ key: blob.pathname });
   } catch (error) {
-    console.error("[resume-upload] token generation failed:", error);
+    console.error("[resume-upload] blob write failed:", error);
     return NextResponse.json(
-      { error: "Could not start the upload. Please try again." },
-      { status: 400 },
+      { error: "Could not store that file. Please try again." },
+      { status: 502 },
     );
   }
 }

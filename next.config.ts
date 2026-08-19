@@ -24,8 +24,9 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  // Blob uploads go browser → Vercel Blob directly, so that origin is needed.
-  "connect-src 'self' https://*.public.blob.vercel-storage.com https://blob.vercel-storage.com",
+  // Resume uploads are proxied through /api/resume/upload (browser → this
+  // origin → Blob), not direct-to-Blob, so no external connect-src is needed.
+  "connect-src 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "frame-src 'none'",
