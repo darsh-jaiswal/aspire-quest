@@ -1,5 +1,6 @@
 "use server";
 
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { waitUntil } from "@vercel/functions";
@@ -22,7 +23,6 @@ import { fieldErrors, studentRegistrationSchema } from "@/lib/validation";
  */
 export type SubmittedValues = {
   fullName: string;
-  email: string;
   phone: string;
   cgpa: string;
   programme: string;
@@ -77,7 +77,6 @@ function isUniqueViolation(error: unknown, constraint?: string): boolean {
 function submittedValuesFrom(formData: FormData): SubmittedValues {
   return {
     fullName: String(formData.get("fullName") ?? ""),
-    email: String(formData.get("email") ?? ""),
     phone: String(formData.get("phone") ?? ""),
     cgpa: String(formData.get("cgpa") ?? ""),
     programme: String(formData.get("programme") ?? ""),
@@ -95,6 +94,30 @@ export async function registerStudent(
 ): Promise<RegisterState> {
   const values = submittedValuesFrom(formData);
 
+  // Identity comes from the verified OAuth session, never from the form. This
+  // is what makes a mistyped or non-existent address impossible. The page is
+  // already gated; this re-check exists because a Server Action is reachable
+  // independently of the page that renders it.
+  const { userId } = await auth();
+  if (!userId) {
+    return {
+      status: "error",
+      message: "Your session has expired. Sign in again to submit your application.",
+      values,
+    };
+  }
+
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress;
+  if (!email) {
+    return {
+      status: "error",
+      message:
+        "We could not read a verified email address from your account. Sign out and sign in again.",
+      values,
+    };
+  }
+
   const requestHeaders = await headers();
   const limit = await checkRateLimit("register", clientIp(requestHeaders));
 
@@ -111,7 +134,7 @@ export async function registerStudent(
 
   const raw = {
     fullName: formData.get("fullName"),
-    email: formData.get("email"),
+    email,
     phone: formData.get("phone"),
     branch: formData.get("branch"),
     programme: formData.get("programme"),
@@ -152,6 +175,7 @@ export async function registerStudent(
         .insert(students)
         .values({
           refCode,
+          clerkUserId: userId,
           fullName: input.fullName,
           email: input.email,
           phone: input.phone,
@@ -202,6 +226,15 @@ export async function registerStudent(
 
       return { status: "success", refCode };
     } catch (error) {
+      if (isUniqueViolation(error, "students_clerk_user_idx")) {
+        return {
+          status: "error",
+          message:
+            "This account already has an application on record. Contact the organising team if you need to change it.",
+          values,
+        };
+      }
+
       if (isUniqueViolation(error, "students_email_idx")) {
         return {
           status: "error",
