@@ -15,8 +15,21 @@ test("an anonymous visitor is sent to sign-in from registration", async ({
 test("an anonymous visitor can still browse the public site", async ({
   page,
 }) => {
-  for (const path of ["/", "/partners", "/alumni"]) {
-    await page.goto(path);
-    await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}`));
-  }
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("link", { name: /Aspire Quest — home/i }),
+  ).toBeVisible();
+
+  await page.goto("/partners");
+  await expect(page).toHaveURL(/\/partners$/);
+  await expect(
+    page.getByRole("heading", { name: "Recruit from MPSTME.", level: 1 }),
+  ).toBeVisible();
+
+  await page.goto("/alumni");
+  await expect(page).toHaveURL(/\/alumni$/);
+  await expect(
+    page.getByRole("heading", { name: "Open a door at your company.", level: 1 }),
+  ).toBeVisible();
 });
