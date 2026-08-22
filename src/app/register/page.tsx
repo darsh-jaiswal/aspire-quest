@@ -11,7 +11,7 @@ import { RegistrationForm } from "./RegistrationForm";
 export const metadata: Metadata = {
   title: "Student registration",
   description:
-    "Register for Aspire Quest at MPSTME Shirpur. One form, a PDF resume, and a reference code on screen — no account needed.",
+    "Register for Aspire Quest at MPSTME Shirpur. Sign in with Google or Microsoft, then submit one form with a PDF resume for a reference code on screen.",
 };
 
 const CHECKLIST = [

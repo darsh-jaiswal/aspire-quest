@@ -77,8 +77,10 @@ export const auditActionEnum = pgEnum("audit_action", [
 /* -------------------------------------------------------------------------
  * Students
  *
- * No accounts. A registration returns an on-screen `refCode`, which is how a
- * student is identified in any follow-up.
+ * Students sign in with Google or Microsoft; `clerkUserId` below is the
+ * one-application-per-account key that enforces it. `refCode` remains the
+ * human-facing handle — the thing a student actually quotes in an email or
+ * at a help desk, since nobody remembers a Clerk user id.
  * ---------------------------------------------------------------------- */
 
 export const students = pgTable(

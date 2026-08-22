@@ -26,9 +26,10 @@ export default function NoAccessPage() {
           This account has no access.
         </h1>
         <p className="mt-5 max-w-[48ch] text-slate">
-          You are signed in, but this account has not been granted a role. If
-          you are a partner recruiter, the organising team issues access once
-          your company is onboarded.
+          You are signed in, but this account cannot open the console. If you
+          are a student, registration is where you want to be. If you are a
+          partner recruiter, the organising team issues access once your
+          company is onboarded.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -37,6 +38,12 @@ export default function NoAccessPage() {
               Sign out
             </button>
           </SignOutButton>
+          <Link
+            href="/register"
+            className="rounded border border-hairline-strong px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:border-navy hover:bg-raised"
+          >
+            Go to registration
+          </Link>
           <Link
             href="/"
             className="rounded border border-hairline-strong px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:border-navy hover:bg-raised"

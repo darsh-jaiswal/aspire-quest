@@ -33,7 +33,14 @@ Always write `₹` directly (UTF-8). Source material renders it as mojibake; the
 | Rate limiting | Upstash Redis |
 | Hosting | Vercel, Fluid Compute. No `runtime = 'edge'` |
 
-**Students have no accounts.** Registration is a public form returning an on-screen reference code. This removes an auth surface and avoids per-student email volume, which would exceed Resend's 100/day free cap during a registration surge.
+**Students sign in with Google or Microsoft.** Registration is gated on a verified
+identity, so the email address on an application is one the applicant demonstrably
+controls rather than one they typed. Browsing the site never requires an account —
+only registering does. This reverses an earlier decision to have no student accounts,
+which was made before registration collected a fee; see
+`docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md`. The Resend
+100/day cap that partly motivated the original decision remains a live constraint on
+confirmation and reminder volume.
 
 ---
 
@@ -166,7 +173,7 @@ The two are separate route trees on purpose. `/portal` is gated by `requireRecru
 
 Interest is a tri-state, not a boolean — "not yet reviewed" must never render as "everyone was rejected". The toggle lives in `src/lib/interest.ts` as pure functions shared by the action and the UI, so the two cannot disagree about what a click means.
 
-**Roles are not self-service.** There is no sign-up route anywhere in this app — students have no accounts, and recruiters are invited by an admin. To grant access, set the Clerk user's **`publicMetadata.role`** to `admin` or `recruiter`:
+**Roles are not self-service.** Students sign in and get no role — that is what makes them a student rather than a denial (see `src/lib/auth.ts`). There is no route by which a signed-in account can grant *itself* `admin` or `recruiter`; recruiters are invited by an admin. To grant access, set the Clerk user's **`publicMetadata.role`** to `admin` or `recruiter`:
 
 ```json
 { "role": "admin" }

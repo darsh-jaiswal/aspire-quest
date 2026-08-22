@@ -8,11 +8,11 @@ export const metadata: Metadata = {
 };
 
 /**
- * Console sign-in.
+ * Sign-in for everyone: organisers, partner recruiters, and students.
  *
- * Admins and recruiters only — students have no accounts, which is why there
- * is no sign-up route anywhere in this application. Recruiters are invited by
- * an admin; there is deliberately no self-registration path into the console.
+ * Students self-serve through Google or Microsoft — an account is how their
+ * email address is verified rather than typed. Recruiters are still invited by
+ * an admin; there is no self-registration path into the console.
  */
 export default function SignInPage() {
   return (
@@ -33,13 +33,12 @@ export default function SignInPage() {
         <SignIn />
 
         <p className="mt-10 max-w-[44ch] text-center text-sm text-muted">
-          Students do not need an account. If you registered as a candidate,
-          your reference code is your application —{" "}
+          Registering as a student? Sign in with Google or Microsoft above —{" "}
           <Link
             href="/register"
             className="font-semibold text-navy underline-offset-4 hover:underline"
           >
-            go to registration
+            then continue to registration
           </Link>
           .
         </p>

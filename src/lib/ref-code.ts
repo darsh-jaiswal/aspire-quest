@@ -3,9 +3,10 @@ import { randomInt } from "node:crypto";
 /**
  * Reference codes.
  *
- * A student has no account, so this code is the only handle they hold. It gets
- * read aloud over the phone and copied off a screen, so the alphabet excludes
- * everything that gets confused in transit: 0/O, 1/I/L, 5/S, 8/B, 2/Z.
+ * A student's Clerk account proves their email; this code is what they actually
+ * hold onto and quote — read aloud over the phone, copied off a screen — so the
+ * alphabet excludes everything that gets confused in transit: 0/O, 1/I/L, 5/S,
+ * 8/B, 2/Z.
  *
  * Crypto RNG rather than Math.random — the code is not a secret, but it should
  * not be guessable enough to let someone enumerate applicants.
