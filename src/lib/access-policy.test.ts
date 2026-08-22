@@ -10,6 +10,7 @@ const admin: PolicyActor = { role: "admin", companyIds: [] };
 const recruiterA: PolicyActor = { role: "recruiter", companyIds: [1] };
 const recruiterAB: PolicyActor = { role: "recruiter", companyIds: [1, 2] };
 const orphan: PolicyActor = { role: "recruiter", companyIds: [] };
+const student: PolicyActor = { role: "student", companyIds: [] };
 
 describe("canActForCompany", () => {
   test("an admin may act for any company", () => {
@@ -102,5 +103,36 @@ describe("fails closed", () => {
         false,
       );
     }
+  });
+});
+
+/**
+ * A student is the default role for any signed-in account, so these are the
+ * tests that stop a self-registered account from reading candidate PII.
+ */
+describe("students are denied everywhere", () => {
+  test("a student may not act for any company", () => {
+    expect(canActForCompany(student, 1)).toBe(false);
+    expect(canActForCompany(student, 999)).toBe(false);
+  });
+
+  test("a student may not read any resume", () => {
+    expect(canReadStudentResume(student, [])).toBe(false);
+    expect(canReadStudentResume(student, [1])).toBe(false);
+    expect(canReadStudentResume(student, [1, 2, 3])).toBe(false);
+  });
+
+  test("a student may not view any bundle, released or draft", () => {
+    expect(canViewBundle(student, { companyId: 1, releasedAt: null })).toBe(false);
+    expect(
+      canViewBundle(student, { companyId: 1, releasedAt: new Date() }),
+    ).toBe(false);
+  });
+
+  test("a student carrying a forged companyIds list is still denied", () => {
+    const forged: PolicyActor = { role: "student", companyIds: [1, 2, 3] };
+    expect(canActForCompany(forged, 1)).toBe(false);
+    expect(canReadStudentResume(forged, [1])).toBe(false);
+    expect(canViewBundle(forged, { companyId: 1, releasedAt: new Date() })).toBe(false);
   });
 });
