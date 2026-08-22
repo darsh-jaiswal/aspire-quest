@@ -6,7 +6,7 @@ const PATHWAYS = [
   {
     audience: "Students",
     heading: "Register for Aspire Quest",
-    body: "One form, a PDF resume, and a reference code on screen when you submit. No account, no password.",
+    body: "Sign in with Google or Microsoft, then submit one form with a PDF resume for a reference code on screen. No password to remember.",
     href: "/register",
     cta: "Start registration",
     variant: "accent" as const,

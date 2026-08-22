@@ -286,7 +286,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     question: "Do I need an account?",
     answer:
-      "No. Registration is a single form. When you submit it you are shown a reference code on screen — save it, because that code is how the organising team identifies your application. There is no student login and no password to forget.",
+      "Yes, but only to register — browsing the rest of the site never requires it. Sign in with Google or Microsoft so the email address on your application is verified rather than typed; there is no separate account to set up and no password to remember. It is not a dashboard: there is nothing to check back into afterward. When you submit the form you are shown a reference code on screen — save it, because that code, not a login, is how the organising team identifies your application.",
   },
   {
     question: "What do I need to have ready?",

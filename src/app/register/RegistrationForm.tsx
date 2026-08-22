@@ -452,8 +452,9 @@ function SuccessPanel({ refCode }: { refCode: string }) {
       </p>
       <h2 className="mt-5 text-h2 font-semibold">Save this reference code.</h2>
       <p className="mt-4 max-w-[52ch] text-slate">
-        There is no login for students, so this code is how the organising team
-        identifies your application. Write it down or screenshot this screen.
+        There is no student dashboard to check back into, so this code is how
+        the organising team identifies your application. Write it down or
+        screenshot this screen.
       </p>
 
       <p

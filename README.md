@@ -37,7 +37,8 @@ Always write `₹` directly (UTF-8). Source material renders it as mojibake; the
 identity, so the email address on an application is one the applicant demonstrably
 controls rather than one they typed. Browsing the site never requires an account —
 only registering does. This reverses an earlier decision to have no student accounts,
-which was made before registration collected a fee; see
+made before there was a plan to charge a registration fee (payment is Stage 2,
+still unbuilt); see
 `docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md`. The Resend
 100/day cap that partly motivated the original decision remains a live constraint on
 confirmation and reminder volume.

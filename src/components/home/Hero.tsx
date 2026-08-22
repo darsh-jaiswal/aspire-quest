@@ -61,7 +61,7 @@ export function Hero() {
           </div>
 
           <p className="mt-5 text-sm text-muted">
-            No account needed — registration takes one form and returns your
+            Sign in with Google or Microsoft to register — one form, then your
             reference code on screen.
           </p>
         </div>
