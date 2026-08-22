@@ -87,6 +87,15 @@ export const students = pgTable(
     id: serial("id").primaryKey(),
     refCode: varchar("ref_code", { length: 12 }).notNull(),
 
+    /**
+     * The Clerk account that submitted this application.
+     *
+     * Nullable because rows created before accounts existed have none. Unique
+     * so one account yields one application — this is the duplicate check,
+     * replacing email, because an account id is stable and an email is typed.
+     */
+    clerkUserId: varchar("clerk_user_id", { length: 64 }),
+
     fullName: varchar("full_name", { length: 120 }).notNull(),
     email: varchar("email", { length: 160 }).notNull(),
     phone: varchar("phone", { length: 20 }).notNull(),
@@ -133,6 +142,7 @@ export const students = pgTable(
   (table) => [
     uniqueIndex("students_ref_code_idx").on(table.refCode),
     uniqueIndex("students_email_idx").on(table.email),
+    uniqueIndex("students_clerk_user_idx").on(table.clerkUserId),
     index("students_cgpa_idx").on(table.cgpa),
     index("students_branch_idx").on(table.branch),
     index("students_focus_area_idx").on(table.focusArea),
