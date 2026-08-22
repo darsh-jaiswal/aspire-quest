@@ -62,7 +62,7 @@ npm run dev
 | `npm test` | Vitest suite |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm run test:e2e` | Playwright — public site, console fail-closed, form contracts |
+| `npm run test:e2e` | Playwright — public site, console fail-closed, form contracts. Needs `CLERK_SECRET_KEY`: the registration tests sign in, and `e2e/global-setup.ts` creates the passwordless `+clerk_test` account they use |
 | `npm run db:generate` | Generate a migration from `src/db/schema.ts` |
 | `npm run db:push` | Push the schema to the database |
 | `npm run db:studio` | Drizzle Studio |

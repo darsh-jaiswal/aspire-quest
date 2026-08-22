@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Public marketing site — the pages that must render with NO environment
- * configured at all (see README § Getting started, § Security). Running
- * these against `next start` with no env vars set is itself the regression
- * test for the proxy bug fixed in commit 54036f6: an unconfigured Clerk used
- * to throw on every request, including these.
+ * Public marketing site — the pages an anonymous visitor must always reach.
+ * None of them may require a session (see README § Getting started,
+ * § Security); the proxy bug fixed in commit 54036f6 was an unconfigured
+ * Clerk throwing on every request, these included.
+ *
+ * One caveat now that registration is gated: the nav test below asserts the
+ * Register link lands on sign-in, which only happens when Clerk is actually
+ * configured. Everything else here still holds with no environment at all.
  */
 
 test.describe("home page", () => {
@@ -23,21 +26,45 @@ test.describe("home page", () => {
     ).toBeVisible();
   });
 
-  test("primary nav reaches the three intake surfaces", async ({ page }) => {
+  /*
+   * One test per link rather than one walking both. Visiting /sign-in leaves
+   * Clerk's dev-browser handshake in flight, and a second click in the same
+   * test raced it — the navigation was cancelled and the assertion read the
+   * stale URL. Separate tests also name which link broke.
+   */
+  test("the Register link reaches registration, via sign-in", async ({
+    page,
+  }) => {
     await page.goto("/");
 
+    // Registration is behind an account, so for an anonymous visitor
+    // "reaching registration" means landing on sign-in with somewhere to go
+    // next. Asserting the destination renders, not just its URL, is what
+    // stops this passing on an error page.
     await page
       .getByRole("link", { name: "Register", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/register$/);
+    await expect(page).toHaveURL(/\/sign-in/);
+    await expect(
+      page.getByRole("link", { name: /continue to registration/i }),
+    ).toBeVisible();
+  });
 
+  test("the recruiter link reaches the partners page", async ({ page }) => {
     await page.goto("/");
+
     await page.getByRole("link", { name: "For recruiters" }).click();
     await expect(page).toHaveURL(/\/partners$/);
+    await expect(
+      page.getByRole("heading", { name: "Recruit from MPSTME.", level: 1 }),
+    ).toBeVisible();
   });
 });
 
-for (const path of ["/", "/alumni", "/partners", "/register"]) {
+// `/register` is deliberately absent: it redirects an anonymous visitor, so
+// checking it here would report the sign-in page's heading as its own. Its
+// heading structure is asserted signed-in, in registration-form.spec.ts.
+for (const path of ["/", "/alumni", "/partners"]) {
   test(`${path} has no obvious accessibility violations in heading structure`, async ({
     page,
   }) => {
