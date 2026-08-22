@@ -341,9 +341,13 @@ top of `src/lib/content.ts`.
 
 - **Razorpay webhook delivery is a hard dependency.** If their webhooks are down,
   payments succeed and confirmations lag until reconciliation catches them.
-- **Pre-existing blob leak, surfaced but not caused by this work.** Resumes upload on
-  file-select, before submit, so anyone who picks a file and leaves already orphans a
-  blob with no database row. Worth fixing separately.
+
+**Resolved 2026-08-22 — the pre-existing blob leak.** Resumes upload on file-select, so
+abandoning the page orphaned a blob with no database row (measured: 10 blobs, 2
+referenced). Fixed ahead of this feature by `src/lib/orphaned-resumes.ts` and a daily
+cron. The pending-row cleanup in Part 5 composes with it: a `pending_payment` row still
+references its resume, so the sweep leaves it alone, and deleting the row releases the
+blob to a later sweep.
 
 ## Build order
 
