@@ -14,6 +14,9 @@ const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
   "/portal(.*)",
   "/api/resume/download(.*)",
+  // Registration requires an identity so the email address is verified rather
+  // than typed. Browsing stays anonymous — only this route is gated.
+  "/register(.*)",
 ]);
 
 /**

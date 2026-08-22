@@ -3,6 +3,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Section";
+import { requireStudent } from "@/lib/auth";
 import { EDITION, REGISTRATION } from "@/lib/content";
 import { RegistrationForm } from "./RegistrationForm";
 
@@ -19,7 +20,9 @@ const CHECKLIST = [
   `A resume as a PDF, under ${REGISTRATION.resumeMaxLabel}`,
 ];
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  await requireStudent();
+
   return (
     <>
       <SiteHeader />
