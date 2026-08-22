@@ -55,7 +55,14 @@ export async function GET(request: Request): Promise<Response> {
   });
 
   try {
-    const result = await get(student.resumeBlobKey, { access: "private" });
+    // Both VERCEL_OIDC_TOKEN and BLOB_STORE_ID are present in every
+    // environment, which makes the SDK prefer OIDC auth — but OIDC isn't
+    // enabled for "development" on this project, so pin the RW token, same
+    // as the upload route.
+    const result = await get(student.resumeBlobKey, {
+      access: "private",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
     if (!result) return new Response("Not found", { status: 404 });
 
     // Filename is rebuilt from our own data — never echoed from the upload.

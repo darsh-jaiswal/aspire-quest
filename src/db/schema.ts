@@ -112,6 +112,17 @@ export const students = pgTable(
     /** Explicit, timestamped consent. Required before any bundle sharing. */
     consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
 
+    /** Set once the registration-confirmation email has been sent. */
+    confirmationEmailSentAt: timestamp("confirmation_email_sent_at", {
+      withTimezone: true,
+    }),
+    /**
+     * How many of the pre-event reminder emails this student has received,
+     * in order. The reminder cron only ever sends the next one — never
+     * re-sends or skips ahead. See src/lib/reminders.ts.
+     */
+    remindersSent: integer("reminders_sent").notNull().default(0),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

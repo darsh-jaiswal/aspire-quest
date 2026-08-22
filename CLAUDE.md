@@ -17,16 +17,20 @@
 | Production | https://aspire-quest.vercel.app |
 | Neon Postgres | `neon-erin-mountain`, schema pushed, all 9 tables live |
 | Clerk | `clerk-cyan-fence`, keys set on all environments |
+| Vercel Blob | store `aspire-quest-resumes` (`store_3Ko4xHah6HiO4TPW`), `BLOB_READ_WRITE_TOKEN` set on all environments — resume upload confirmed working via a live browser test 2026-08-21 |
+| Upstash Redis | `UPSTASH_REDIS_REST_*` set on all environments — rate limiting no longer fails closed |
+| Resend | domain `aspirequest.darshjaiswal.com` (DKIM+SPF verified 2026-08-21), `RESEND_API_KEY`/`RESEND_EMAIL_DOMAIN` set on all environments. Sends from `noreply@aspirequest.darshjaiswal.com` — a subdomain used only as a mail sender identity, unrelated to and not affecting the portfolio hosted at the bare `darshjaiswal.com` |
+
+## Registration email
+
+- **Confirmation email** sends on every successful registration (`src/app/register/actions.ts`), fire-and-safe via `waitUntil` so it survives after the response is returned. A send failure never fails the registration — the DB row is the real record, the email is a courtesy. See `src/lib/email.ts`.
+- **Reminder emails** (`src/lib/reminders.ts`, cron at `src/app/api/cron/reminders/route.ts`, scheduled daily in `vercel.json`) send at 7/3/1 days before `EDITION.startsAt` (`src/lib/content.ts`). **This is a deliberate no-op while `EDITION.startsAt` is `null`** — Ambiora '27 dates aren't announced yet. Once an organiser sets a real date and redeploys, the cron picks up automatically; no other step needed. Protected by `CRON_SECRET` (set on all environments).
+- Both use React Email templates in `src/emails/`. Idempotency keys prevent duplicate sends on retry.
+- Resend free tier caps at 100 emails/day — accepted as a known risk for now per the organiser (a registration surge could hit this on confirmations alone). Revisit if it becomes a real problem.
 
 ## Infrastructure — still missing
 
-Each fails in its own deliberate way. Do not "fix" these failures; they are the intended direction.
-
-- **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) → resume upload fails, so registration cannot complete
-- **Upstash Redis** (`UPSTASH_REDIS_REST_*`) → public forms reject; `src/lib/rate-limit.ts` fails **closed** on purpose
 - **No Clerk user has ever signed in**, so no one holds `publicMetadata.role`. `/admin` and `/portal` redirect to `/sign-in` and stop there. Roles are not self-service — an account must exist before a role can be set on it.
-
-Both remaining integrations need a marketplace terms click in a browser (`vercel integration add <name>`); the CLI cannot complete that step alone.
 
 ## Traps this codebase has already sprung
 
@@ -52,6 +56,5 @@ Screenshot before judging any visual change — Playwright drives real Chromium,
 ## Open threads
 
 1. Sign in at `/admin` to create a Clerk account, then set `publicMetadata.role` to `admin`. Nothing in the console or portal is reachable until this happens.
-2. Provision Blob and Upstash so the three intake forms can actually complete.
-3. The NMIMS crest is filtered (`grayscale invert`) to sit on the light header, because the supplied PNG has a black ground baked in. A transparent or light-ground asset removes the filter and restores the mark's true tonality.
-4. Still blocked on the organiser: Ambiora '27 dates, full-resolution photos, the alumni CSV and the Placement Cell recruiter list, and whether this lives on an `nmims.edu` subdomain.
+2. The NMIMS crest is filtered (`grayscale invert`) to sit on the light header, because the supplied PNG has a black ground baked in. A transparent or light-ground asset removes the filter and restores the mark's true tonality.
+3. Still blocked on the organiser: Ambiora '27 dates, full-resolution photos, the alumni CSV and the Placement Cell recruiter list, and whether this lives on an `nmims.edu` subdomain.

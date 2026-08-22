@@ -73,7 +73,13 @@ export function RegistrationForm() {
   const id = useId();
 
   const errors = state.status === "error" ? (state.errors ?? {}) : {};
+  const values = state.status === "error" ? state.values : undefined;
   const fid = (name: string) => `${id}-${name}`;
+
+  // Forces the uncontrolled fields below to remount with fresh `defaultValue`s
+  // on every new error — otherwise React drops what the student typed the
+  // moment a `<form action>` submission completes, success or failure.
+  const formKey = state.status === "error" ? JSON.stringify(state) : "initial";
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0];
@@ -141,7 +147,7 @@ export function RegistrationForm() {
           About you
         </legend>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <div key={`${formKey}-about`} className="mt-6 grid gap-6 sm:grid-cols-2">
           <Field
             label="Full name"
             htmlFor={fid("fullName")}
@@ -153,6 +159,7 @@ export function RegistrationForm() {
               name="fullName"
               autoComplete="name"
               required
+              defaultValue={values?.fullName}
               aria-invalid={errors.fullName ? true : undefined}
               aria-describedby={describedBy(fid("fullName"), undefined, errors.fullName)}
             />
@@ -172,6 +179,7 @@ export function RegistrationForm() {
               inputMode="email"
               autoComplete="email"
               required
+              defaultValue={values?.email}
               aria-invalid={errors.email ? true : undefined}
               aria-describedby={describedBy(fid("email"), "hint", errors.email)}
             />
@@ -192,6 +200,7 @@ export function RegistrationForm() {
               autoComplete="tel"
               required
               className="tabular"
+              defaultValue={values?.phone}
               aria-invalid={errors.phone ? true : undefined}
               aria-describedby={describedBy(fid("phone"), "hint", errors.phone)}
             />
@@ -211,6 +220,7 @@ export function RegistrationForm() {
               placeholder="7.85"
               required
               className="tabular"
+              defaultValue={values?.cgpa}
               aria-invalid={errors.cgpa ? true : undefined}
               aria-describedby={describedBy(fid("cgpa"), "hint", errors.cgpa)}
             />
@@ -223,14 +233,19 @@ export function RegistrationForm() {
           Your programme
         </legend>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
+        <div key={`${formKey}-programme`} className="mt-6 grid gap-6 sm:grid-cols-3">
           <Field
             label="Programme"
             htmlFor={fid("programme")}
             error={errors.programme}
             required
           >
-            <Select id={fid("programme")} name="programme" required defaultValue="">
+            <Select
+              id={fid("programme")}
+              name="programme"
+              required
+              defaultValue={values?.programme ?? ""}
+            >
               <option value="" disabled>
                 Select
               </option>
@@ -245,7 +260,12 @@ export function RegistrationForm() {
             error={errors.branch}
             required
           >
-            <Select id={fid("branch")} name="branch" required defaultValue="">
+            <Select
+              id={fid("branch")}
+              name="branch"
+              required
+              defaultValue={values?.branch ?? ""}
+            >
               <option value="" disabled>
                 Select
               </option>
@@ -258,7 +278,12 @@ export function RegistrationForm() {
           </Field>
 
           <Field label="Year" htmlFor={fid("year")} error={errors.year} required>
-            <Select id={fid("year")} name="year" required defaultValue="">
+            <Select
+              id={fid("year")}
+              name="year"
+              required
+              defaultValue={values?.year ?? ""}
+            >
               <option value="" disabled>
                 Select
               </option>
@@ -272,7 +297,7 @@ export function RegistrationForm() {
         </div>
       </fieldset>
 
-      <fieldset className="mt-12 border-0 p-0">
+      <fieldset key={`${formKey}-focus`} className="mt-12 border-0 p-0">
         <legend className="text-eyebrow font-semibold uppercase text-muted">
           What you want to be considered for
         </legend>
@@ -296,6 +321,7 @@ export function RegistrationForm() {
                 name="focusArea"
                 value={area.code}
                 required
+                defaultChecked={values?.focusArea === area.code}
                 className="mt-1 size-4 shrink-0 accent-[var(--color-navy)]"
               />
               <span>
@@ -327,6 +353,7 @@ export function RegistrationForm() {
             name="skills"
             rows={2}
             className="min-h-0"
+            defaultValue={values?.skills}
             aria-describedby={describedBy(fid("skills"), "hint", errors.skills)}
           />
         </Field>
@@ -382,11 +409,12 @@ export function RegistrationForm() {
         ) : null}
       </fieldset>
 
-      <div className="mt-12 rounded border border-hairline bg-raised p-6">
+      <div key={`${formKey}-consent`} className="mt-12 rounded border border-hairline bg-raised p-6">
         <Checkbox
           id={fid("consent")}
           name="consent"
           required
+          defaultChecked={values?.consent}
           error={errors.consent}
           label={
             <>
