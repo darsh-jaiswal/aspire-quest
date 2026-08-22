@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -31,7 +32,16 @@ export default async function RegisterPage() {
     .join(" ");
 
   return (
-    <>
+    // Clerk's session cookie is a short-lived JWT (60s) that Clerk's client
+    // SDK silently refreshes on a background timer — a refresh loop that
+    // only runs where ClerkProvider is mounted. Every other authenticated
+    // surface (admin, portal, sign-in, no-access) already mounts it for this
+    // reason; this page is a fifth. Without it, a student who spends over a
+    // minute filling the form — normal, given a resume upload — has their
+    // session expire silently, and Submit fails with no way to recover
+    // without losing everything typed. Confirmed live: decoding the session
+    // JWT this branch's own sign-in issues shows exp - iat = 60s exactly.
+    <ClerkProvider>
       <SiteHeader />
 
       <main id="main" className="pt-[4.5rem]">
@@ -80,6 +90,6 @@ export default async function RegisterPage() {
       </main>
 
       <SiteFooter />
-    </>
+    </ClerkProvider>
   );
 }
