@@ -1,0 +1,146 @@
+/**
+ * Orphaned resume sweep.
+ *
+ * The registration form uploads a resume the moment a file is chosen, not on
+ * submit — that is what makes the progress bar real, and the payment flow needs
+ * the blob to exist before checkout opens. The cost is that anyone who picks a
+ * file and then walks away leaves a blob in the store that no database row
+ * references. Nothing ever cleaned those up.
+ *
+ * This deletes files, so the decision of WHAT to delete is a pure function
+ * tested exhaustively in orphaned-resumes.test.ts, and the I/O around it
+ * refuses to run when its inputs look wrong. Two independent conditions must
+ * both hold before a blob is removed:
+ *
+ *   1. No student row references it.
+ *   2. It is older than the grace period — nobody fills a form for a day.
+ */
+
+import { del, list } from "@vercel/blob";
+import { isNotNull } from "drizzle-orm";
+import { db } from "@/db";
+import { students } from "@/db/schema";
+
+/** A day. A form session is minutes; this is deliberately far beyond it. */
+const GRACE_MS = 24 * 60 * 60 * 1000;
+
+export type BlobSummary = {
+  pathname: string;
+  uploadedAt: Date;
+};
+
+/**
+ * Which blobs are safe to delete.
+ *
+ * Pure and I/O-free so the rule can be tested directly rather than reasoned
+ * about — the same approach access-policy.ts takes for authorisation.
+ */
+export function selectOrphanedBlobs({
+  blobs,
+  referencedKeys,
+  now,
+  graceMs = GRACE_MS,
+}: {
+  blobs: readonly BlobSummary[];
+  referencedKeys: ReadonlySet<string>;
+  now: Date;
+  graceMs?: number;
+}): string[] {
+  const cutoff = now.getTime() - graceMs;
+
+  return blobs
+    .filter((blob) => !referencedKeys.has(blob.pathname))
+    .filter((blob) => blob.uploadedAt.getTime() < cutoff)
+    .map((blob) => blob.pathname);
+}
+
+export type SweepResult =
+  | { ran: false; reason: "not_configured" | "no_referenced_keys" }
+  | { ran: true; scanned: number; deleted: number; failed: number; dryRun: boolean };
+
+/**
+ * Every resume key currently referenced by a student row.
+ *
+ * Read in full rather than checked per-blob: one query is cheaper than N, and
+ * an all-or-nothing read means a partial failure surfaces as an error instead
+ * of silently under-reporting references and deleting live resumes.
+ */
+async function referencedResumeKeys(): Promise<Set<string>> {
+  const rows = await db
+    .select({ key: students.resumeBlobKey })
+    .from(students)
+    .where(isNotNull(students.resumeBlobKey));
+
+  return new Set(rows.map((row) => row.key).filter((key): key is string => Boolean(key)));
+}
+
+/**
+ * @param dryRun report what would be deleted without deleting it. Run this
+ *               first against any store whose contents you have not verified.
+ */
+export async function sweepOrphanedResumes({
+  dryRun = false,
+  now = new Date(),
+}: { dryRun?: boolean; now?: Date } = {}): Promise<SweepResult> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    console.error("[resume-sweep] BLOB_READ_WRITE_TOKEN missing — refusing to run.");
+    return { ran: false, reason: "not_configured" };
+  }
+
+  const referenced = await referencedResumeKeys();
+
+  // A store with resumes in it but zero references almost certainly means the
+  // reference read went wrong, not that every resume is genuinely orphaned.
+  // Deleting on that reading would destroy every live resume, so stop instead.
+  if (referenced.size === 0) {
+    const probe = await list({ limit: 1, token });
+    if (probe.blobs.length > 0) {
+      console.error(
+        "[resume-sweep] Store is non-empty but no student row references a resume. " +
+          "Refusing to run — this looks like a failed read, not a store full of orphans.",
+      );
+      return { ran: false, reason: "no_referenced_keys" };
+    }
+  }
+
+  let cursor: string | undefined;
+  let scanned = 0;
+  let deleted = 0;
+  let failed = 0;
+
+  do {
+    const page = await list({ cursor, limit: 1000, token });
+    scanned += page.blobs.length;
+
+    const orphans = selectOrphanedBlobs({
+      blobs: page.blobs.map((blob) => ({
+        pathname: blob.pathname,
+        uploadedAt: blob.uploadedAt,
+      })),
+      referencedKeys: referenced,
+      now,
+    });
+
+    for (const pathname of orphans) {
+      if (dryRun) {
+        console.info(`[resume-sweep] would delete: ${pathname}`);
+        deleted += 1;
+        continue;
+      }
+
+      try {
+        await del(pathname, { token });
+        deleted += 1;
+      } catch (error) {
+        // One stuck file must not abort the sweep.
+        failed += 1;
+        console.error(`[resume-sweep] failed to delete ${pathname}:`, error);
+      }
+    }
+
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+
+  return { ran: true, scanned, deleted, failed, dryRun };
+}
