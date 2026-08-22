@@ -43,23 +43,30 @@ export class AuthorizationError extends Error {
   }
 }
 
-function parseRole(value: unknown): Role | null {
+function parseGrantedRole(value: unknown): Role | null {
   return value === "admin" || value === "recruiter" ? value : null;
 }
 
 /**
- * The signed-in actor, or null. Cached per request so a page that calls this
- * from several components does not re-hit Clerk each time.
+ * The signed-in actor, or null when nobody is signed in. Cached per request so
+ * a page that calls this from several components does not re-hit Clerk.
+ *
+ * A signed-in account with no granted role is a STUDENT, not a denial. That is
+ * what lets students self-serve without an admin provisioning each one. Null
+ * now means exactly one thing: no session.
  */
 export const getActor = cache(async (): Promise<Actor | null> => {
   const { userId } = await auth();
   if (!userId) return null;
 
   const user = await currentUser();
-  const role = parseRole(user?.publicMetadata?.role);
-  if (!role) return null;
+  const role = parseGrantedRole(user?.publicMetadata?.role) ?? "student";
 
   if (role === "admin") {
+    return { userId, role, companyIds: [] };
+  }
+
+  if (role === "student") {
     return { userId, role, companyIds: [] };
   }
 
@@ -88,6 +95,21 @@ export function requireAdmin(): Promise<Actor> {
 
 export function requireRecruiter(): Promise<Actor> {
   return requireRole("recruiter");
+}
+
+/**
+ * Any signed-in account. Used to gate registration.
+ *
+ * Deliberately admits admins and recruiters too — an organiser testing the
+ * registration flow should not be blocked by their own role.
+ */
+export async function requireStudent(): Promise<Actor> {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  const actor = await getActor();
+  if (!actor) redirect("/sign-in");
+  return actor;
 }
 
 /** Either role — for surfaces both can reach, such as a resume download. */
