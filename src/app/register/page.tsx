@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { currentUser } from "@clerk/nextjs/server";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Container } from "@/components/ui/Container";
@@ -22,6 +23,12 @@ const CHECKLIST = [
 
 export default async function RegisterPage() {
   await requireStudent();
+  const user = await currentUser();
+
+  const email = user?.primaryEmailAddress?.emailAddress ?? "";
+  const suggestedName = [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>
@@ -67,7 +74,7 @@ export default async function RegisterPage() {
           </div>
 
           <div className="lg:col-span-8">
-            <RegistrationForm />
+            <RegistrationForm email={email} suggestedName={suggestedName} />
           </div>
         </Container>
       </main>

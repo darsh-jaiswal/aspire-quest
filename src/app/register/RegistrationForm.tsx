@@ -66,7 +66,13 @@ function uploadResume(
   });
 }
 
-export function RegistrationForm() {
+export function RegistrationForm({
+  email,
+  suggestedName,
+}: {
+  email: string;
+  suggestedName: string;
+}) {
   const [state, formAction, pending] = useActionState(registerStudent, INITIAL);
   const [file, setFile] = useState<UploadState>({ phase: "empty" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,31 +165,23 @@ export function RegistrationForm() {
               name="fullName"
               autoComplete="name"
               required
-              defaultValue={values?.fullName}
+              defaultValue={values?.fullName ?? suggestedName}
               aria-invalid={errors.fullName ? true : undefined}
               aria-describedby={describedBy(fid("fullName"), undefined, errors.fullName)}
             />
           </Field>
 
-          <Field
-            label="Email"
-            htmlFor={fid("email")}
-            error={errors.email}
-            hint="Used for shortlist updates. One application per address."
-            required
-          >
-            <Input
-              id={fid("email")}
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              defaultValue={values?.email}
-              aria-invalid={errors.email ? true : undefined}
-              aria-describedby={describedBy(fid("email"), "hint", errors.email)}
-            />
-          </Field>
+          <div>
+            <span className="block text-sm font-semibold text-navy">
+              Email
+            </span>
+            <p className="mt-1 text-xs text-muted">
+              From the account you signed in with. Shortlist updates go here.
+            </p>
+            <p className="mt-2 rounded border border-hairline-strong bg-sunken px-3.5 py-2.5 text-slate">
+              {email}
+            </p>
+          </div>
 
           <Field
             label="Mobile number"
