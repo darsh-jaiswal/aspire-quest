@@ -547,7 +547,6 @@ No `errors` object here: the form renders per-field errors next to inputs, and
 this failure belongs to no field. It surfaces through the top-level `message`
 banner, which the form already renders. Adding `errors: { form: ... }` would be
 dead data — nothing reads that key.
-```
 
 Keep the `students_email_idx` branch: two different OAuth accounts can carry the same address, and one application per human address is still the intent.
 
