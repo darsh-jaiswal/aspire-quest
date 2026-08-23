@@ -4,17 +4,12 @@ import { Container } from "@/components/ui/Container";
 import { SITE } from "@/lib/content";
 
 /**
- * The header is transparent and fixed, so it inherits whatever sits behind
- * it. That makes the tone load-bearing rather than cosmetic: the home page
- * floats it over the ink masthead, every other page over light surface. A
- * single fixed colour would be invisible on one of the two.
+ * The header sits in normal document flow at the top of the page — it does
+ * not follow the viewport as the page scrolls.
  */
-export function SiteHeader({ onDark = false }: { onDark?: boolean }) {
-  const wordmarkColor = onDark ? "text-paper" : "text-navy";
-  const captionColor = onDark ? "text-paper/60" : "text-muted";
-
+export function SiteHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-transparent">
+    <header className="bg-surface">
       <Container className="flex h-[4.5rem] items-center justify-between gap-6">
         <Link
           href="/"
@@ -22,30 +17,28 @@ export function SiteHeader({ onDark = false }: { onDark?: boolean }) {
           aria-label={`${SITE.name} — home`}
         >
           <span className="flex flex-col leading-none">
-            <span
-              className={`text-[1.0625rem] font-semibold tracking-tight ${wordmarkColor}`}
-            >
+            <span className="text-[1.0625rem] font-semibold tracking-tight text-navy">
               Aspire&nbsp;Quest
             </span>
-            <span className={`mt-1 text-[0.6875rem] tracking-wide ${captionColor}`}>
+            <span className="mt-1 text-[0.6875rem] tracking-wide text-muted">
               {SITE.institution}
             </span>
           </span>
         </Link>
 
         <div className="flex items-center gap-3">
-          <ButtonLink
-            href="/partners"
-            variant="gradient-soft"
-            className="hidden px-4 py-2.5 sm:inline-flex"
-          >
-            For recruiters
-          </ButtonLink>
-          <ButtonLink
-            href="/register"
-            variant={onDark ? "gradient-invert" : "gradient"}
-            className="px-4 py-2.5"
-          >
+          {/* Wrapped rather than hidden directly on the link: ButtonLink's
+              own base class always carries an unconditional `inline-flex`,
+              which fights `hidden` at equal CSS specificity — Tailwind
+              resolves that by generation order, not by which one is more
+              specific, so it isn't reliable. A plain wrapper has no
+              competing display utility to fight. */}
+          <div className="hidden sm:block">
+            <ButtonLink href="/partners" variant="gradient-soft" className="px-4 py-2.5">
+              For recruiters
+            </ButtonLink>
+          </div>
+          <ButtonLink href="/register" variant="gradient" className="px-4 py-2.5">
             Register
           </ButtonLink>
         </div>

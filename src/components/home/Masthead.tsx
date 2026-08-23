@@ -13,7 +13,7 @@ export function Masthead() {
   return (
     <section
       aria-label={`${SITE.parentEvent} — ${SITE.name}`}
-      className="relative flex min-h-[24rem] flex-col justify-end bg-ink text-paper [--color-focus:var(--color-paper)] sm:min-h-[28rem]"
+      className="relative flex min-h-[24rem] flex-col justify-end overflow-hidden bg-ink text-paper [--color-focus:var(--color-paper)] sm:min-h-[28rem]"
     >
       <Container className="relative">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-t border-paper/20 pt-5">
