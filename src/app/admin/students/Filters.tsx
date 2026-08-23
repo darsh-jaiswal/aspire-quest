@@ -19,6 +19,12 @@ const STATUSES = [
   ["rejected", "Not progressed"],
 ] as const;
 
+const PAYMENT_FILTERS = [
+  ["paid", "Paid (default)"],
+  ["unpaid", "Unpaid only"],
+  ["all", "All"],
+] as const;
+
 const SORTS = [
   ["cgpa_desc", "CGPA, high to low"],
   ["cgpa_asc", "CGPA, low to high"],
@@ -40,6 +46,7 @@ export function Filters({
     status?: string;
     q?: string;
     sort?: string;
+    payment?: string;
   };
   exportHref: string;
 }) {
@@ -49,7 +56,7 @@ export function Filters({
       className="rounded border border-hairline bg-raised p-5"
       aria-label="Filter candidates"
     >
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <div className="lg:col-span-2">
           <label
             htmlFor="q"
@@ -141,6 +148,27 @@ export function Filters({
             className={`${CONTROL} mt-1.5`}
           >
             {STATUSES.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="payment"
+            className="block text-xs font-semibold text-navy"
+          >
+            Payment
+          </label>
+          <select
+            id="payment"
+            name="payment"
+            defaultValue={current.payment ?? "paid"}
+            className={`${CONTROL} mt-1.5`}
+          >
+            {PAYMENT_FILTERS.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>

@@ -27,7 +27,8 @@ const INITIAL: PortalActionState = { status: "idle" };
 type Props = {
   bundleId: number;
   studentId: number;
-  refCode: string;
+  /** Null only for an unpaid row — a bundle should never contain one, but the type must allow it. */
+  refCode: string | null;
   fullName: string;
   email: string;
   branch: string;
@@ -71,7 +72,7 @@ export function CandidateRow({
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 className="font-semibold text-navy">{fullName}</h2>
             <span data-figure className="text-xs text-muted">
-              {refCode}
+              {refCode ?? "Unpaid"}
             </span>
             {interested === true ? (
               <Pill tone="positive">Interested</Pill>

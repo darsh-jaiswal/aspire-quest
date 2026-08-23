@@ -46,17 +46,22 @@ function buildCsp(): string {
 
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${clerkScript} https://challenges.cloudflare.com https://*.protect.clerk.com`,
+    // Razorpay Checkout is a script-injected overlay, not an npm bundle —
+    // checkout.razorpay.com is where checkout.js itself loads from.
+    `script-src 'self' 'unsafe-inline'${clerkScript} https://challenges.cloudflare.com https://*.protect.clerk.com https://checkout.razorpay.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.clerk.com",
+    "img-src 'self' data: blob: https://img.clerk.com https://*.razorpay.com",
     "font-src 'self' data:",
     // Resume uploads are proxied through /api/resume/upload (browser → this
-    // origin → Blob), so the only external connect-src needed is Clerk's.
-    `connect-src 'self'${clerkConnect} https://*.protect.clerk.com`,
+    // origin → Blob), so Clerk's is otherwise the only external connect-src
+    // needed — plus Razorpay's API, which checkout.js calls directly from
+    // the browser once the popup opens.
+    `connect-src 'self'${clerkConnect} https://*.protect.clerk.com https://api.razorpay.com https://lumberjack.razorpay.com`,
     "worker-src 'self' blob:",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "frame-src https://challenges.cloudflare.com https://*.protect.clerk.com",
+    // The checkout popup itself is an iframe Razorpay's script injects.
+    "frame-src https://challenges.cloudflare.com https://*.protect.clerk.com https://api.razorpay.com https://checkout.razorpay.com",
     "object-src 'none'",
     "base-uri 'self'",
     "upgrade-insecure-requests",

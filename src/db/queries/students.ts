@@ -24,6 +24,8 @@ export type StudentStatus =
   | "selected"
   | "rejected";
 
+export type PaymentFilter = "paid" | "unpaid" | "all";
+
 export type ScreeningFilters = {
   /** CGPA floor, as a decimal string — never a float. See schema note. */
   minCgpa?: string;
@@ -33,6 +35,14 @@ export type ScreeningFilters = {
   /** Free text across name, email and reference code. */
   query?: string;
   sort?: "cgpa_desc" | "cgpa_asc" | "newest" | "name";
+  /**
+   * Defaults to "paid" when omitted — an unpaid row is not a registration
+   * (see the design spec's "no payment, no registration" rule) and must
+   * never appear in the screening list, dashboard counts, or a CSV export as
+   * a genuine applicant. Callers pass "unpaid" or "all" explicitly for
+   * drop-off analysis.
+   */
+  paymentFilter?: PaymentFilter;
 };
 
 const SORTS = {
@@ -44,6 +54,14 @@ const SORTS = {
 
 function buildWhere(filters: ScreeningFilters): SQL | undefined {
   const clauses: SQL[] = [];
+
+  const paymentFilter = filters.paymentFilter ?? "paid";
+  if (paymentFilter === "paid") {
+    clauses.push(eq(students.paymentStatus, "paid"));
+  } else if (paymentFilter === "unpaid") {
+    clauses.push(eq(students.paymentStatus, "pending_payment"));
+  }
+  // "all" adds no clause.
 
   if (filters.minCgpa) clauses.push(gte(students.cgpa, filters.minCgpa));
   if (filters.branch) clauses.push(eq(students.branch, filters.branch));
@@ -76,6 +94,7 @@ const LIST_COLUMNS = {
   focusArea: students.focusArea,
   skills: students.skills,
   status: students.status,
+  paymentStatus: students.paymentStatus,
   resumeBlobKey: students.resumeBlobKey,
   createdAt: students.createdAt,
 } as const;
@@ -148,16 +167,17 @@ export async function getStudentsByIds(ids: readonly number[]) {
     .orderBy(desc(students.cgpa));
 }
 
-/** Dashboard counts, one round trip. */
-export async function studentStatusCounts(): Promise<
-  Record<StudentStatus, number>
-> {
+/** Dashboard counts, one round trip. Defaults to paid rows only — see ScreeningFilters.paymentFilter. */
+export async function studentStatusCounts(
+  paymentFilter: PaymentFilter = "paid",
+): Promise<Record<StudentStatus, number>> {
   const rows = await db
     .select({
       status: students.status,
       value: sql<number>`count(*)::int`,
     })
     .from(students)
+    .where(buildWhere({ paymentFilter }))
     .groupBy(students.status);
 
   const out: Record<StudentStatus, number> = {

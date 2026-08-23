@@ -15,7 +15,7 @@
 | GitHub | `darsh-jaiswal/aspire-quest`, private |
 | Vercel | project `aspire-quest`, Git-connected — **every push to `main` auto-deploys to production** |
 | Production | https://aspire-quest.vercel.app |
-| Neon Postgres | `neon-erin-mountain`, schema pushed, all 9 tables live |
+| Neon Postgres | `neon-erin-mountain`, schema pushed, all 11 tables live (added `payment_orders`, `payment_events` 2026-08-23) |
 | Clerk | `clerk-cyan-fence`, keys set on all environments |
 | Vercel Blob | store `aspire-quest-resumes` (`store_3Ko4xHah6HiO4TPW`), `BLOB_READ_WRITE_TOKEN` set on all environments — resume upload confirmed working via a live browser test 2026-08-21 |
 | Upstash Redis | `UPSTASH_REDIS_REST_*` set on all environments — rate limiting no longer fails closed |
@@ -28,9 +28,17 @@
 - Both use React Email templates in `src/emails/`. Idempotency keys prevent duplicate sends on retry.
 - Resend free tier caps at 100 emails/day — accepted as a known risk for now per the organiser (a registration surge could hit this on confirmations alone). Revisit if it becomes a real problem.
 
+## Registration payment (Stage 2, built 2026-08-23)
+
+- **Razorpay is wired but not provisioned.** No account exists yet — `NEXT_PUBLIC_RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` are unset everywhere. With a fee configured (`REGISTRATION_FEE.amountPaise` in `src/lib/content.ts` — currently a real ₹100, a provisional figure the site owner set directly to unblock this build, not yet organiser-confirmed), registration fails closed with a clear "temporarily unavailable" message rather than accepting an application nobody can pay for. Set `amountPaise` back to `null` to keep registration free until Razorpay exists.
+- **The checkout popup itself is unverified end-to-end.** Everything up to opening Razorpay Checkout is tested (order creation, the review screen, the CSP allowances for `checkout.razorpay.com` / `api.razorpay.com`) but the actual popup, a real payment, and the webhook firing for real have never run — there is no Razorpay account to test against. Once one exists with test-mode keys, do a full pass before any real money moves: register with a real card in test mode, confirm the webhook lands, confirm the reference code appears. The CSP allowances in particular are the commonly-documented set (`checkout.razorpay.com`, `api.razorpay.com`, `lumberjack.razorpay.com`) rather than something confirmed against Razorpay's own docs, which don't publish a definitive CSP allowlist — expect to adjust if the live popup hits a blocked resource.
+- **Two new crons**, both protected by `CRON_SECRET` like the existing two: `payment-reconciliation` (daily, asks Razorpay directly about any order stuck non-terminal over an hour — the fallback for a webhook that never arrives) and `sweep-pending-registrations` (daily, deletes abandoned `pending_payment` rows older than 24h that never got as far as a payment attempt — a row with ANY payment order is kept permanently, on purpose, see `payment-flow-review.md` Defect 5).
+- The webhook at `/api/payments/razorpay/webhook` is the only writer of `payment_status='paid'` — a single compare-and-swap `UPDATE ... WHERE payment_status='pending_payment'`, shared with the reconciliation cron via `src/lib/payment-settlement.ts`. Read `payment-flow-review.md` before touching this path; it records six real defects an earlier draft of this design had and why each was wrong.
+
 ## Infrastructure — still missing
 
 - **No Clerk user has ever signed in**, so no one holds `publicMetadata.role`. `/admin` and `/portal` redirect to `/sign-in` and stop there. Roles are not self-service — an account must exist before a role can be set on it.
+- **Razorpay** — see "Registration payment" above.
 
 ## Traps this codebase has already sprung
 
@@ -60,3 +68,4 @@ Screenshot before judging any visual change — Playwright drives real Chromium,
 1. Sign in at `/admin` to create a Clerk account, then set `publicMetadata.role` to `admin`. Nothing in the console or portal is reachable until this happens.
 2. The NMIMS crest is filtered (`grayscale invert`) to sit on the light header, because the supplied PNG has a black ground baked in. A transparent or light-ground asset removes the filter and restores the mark's true tonality.
 3. Still blocked on the organiser: Ambiora '27 dates, full-resolution photos, the alumni CSV and the Placement Cell recruiter list, and whether this lives on an `nmims.edu` subdomain.
+4. Create a Razorpay account, set the three env vars (test-mode keys first), and get organiser sign-off on the real fee and on whose account receives the money (personal vs. institutional — real accountability implications for an NMIMS-adjacent event). Then run a full test-mode payment through before this goes live for real students.

@@ -68,10 +68,10 @@ test.describe("registration form", () => {
     }
   });
 
-  test("submit stays disabled until a resume is attached", async ({
+  test("continuing to review stays disabled until a resume is attached", async ({
     page,
   }) => {
-    const submit = page.getByRole("button", { name: /submit application/i });
+    const submit = page.getByRole("button", { name: /continue to review/i });
     await expect(submit).toBeDisabled();
 
     // Filling every other field must not be enough on its own — the resume

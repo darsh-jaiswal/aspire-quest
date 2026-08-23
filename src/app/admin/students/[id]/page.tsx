@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading, Pill } from "@/components/admin/Shell";
+import { getPaidOrderForStudent } from "@/db/queries/payments";
 import { getStudent } from "@/db/queries/students";
 import { recordAudit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
@@ -24,6 +25,9 @@ export default async function StudentDetailPage({
 
   const student = await getStudent(studentId);
   if (!student) notFound();
+
+  const paidOrder =
+    student.paymentStatus === "paid" ? await getPaidOrderForStudent(studentId) : null;
 
   // A single-candidate read, including phone — audited individually.
   await recordAudit({
@@ -100,6 +104,33 @@ export default async function StudentDetailPage({
           <div className="mt-4">
             <Pill tone="active">{student.status}</Pill>
           </div>
+
+          <h2 className="mt-10 text-eyebrow font-semibold uppercase text-muted">
+            Payment
+          </h2>
+          <div className="mt-4">
+            <Pill tone={student.paymentStatus === "paid" ? "positive" : "critical"}>
+              {student.paymentStatus === "pending_payment"
+                ? "Unpaid"
+                : student.paymentStatus}
+            </Pill>
+          </div>
+          {paidOrder ? (
+            <dl className="mt-4 border-t border-hairline-strong">
+              <div className="grid grid-cols-[10rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="text-sm text-muted">Amount paid</dt>
+                <dd className="text-sm font-semibold tabular text-navy">
+                  ₹{(paidOrder.amountPaise / 100).toFixed(2)}
+                </dd>
+              </div>
+              <div className="grid grid-cols-[10rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="text-sm text-muted">Paid at</dt>
+                <dd className="text-sm font-semibold tabular text-navy">
+                  {student.paidAt?.toLocaleString("en-IN") ?? "—"}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
 
           <h2 className="mt-10 text-eyebrow font-semibold uppercase text-muted">
             Skills

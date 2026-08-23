@@ -38,7 +38,7 @@ export default async function AdminOverviewPage() {
         <StatBlock
           label="Registrations"
           value={totalStudents}
-          note={`${students.shortlisted} shortlisted`}
+          note={`${students.shortlisted} shortlisted · paid only`}
         />
         <StatBlock
           label="Companies in pipeline"

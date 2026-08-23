@@ -33,6 +33,7 @@ const COLUMNS: CsvColumn<Row>[] = [
   { header: "Focus area", value: (r) => r.focusArea },
   { header: "Skills", value: (r) => r.skills },
   { header: "Status", value: (r) => r.status },
+  { header: "Payment", value: (r) => r.paymentStatus },
   { header: "Registered", value: (r) => r.createdAt.toISOString() },
 ];
 
@@ -42,8 +43,11 @@ function parseFilters(url: URL): ScreeningFilters {
   const minCgpa = get("minCgpa");
   const focusArea = get("focusArea");
   const status = get("status");
+  const payment = get("payment");
 
   return {
+    paymentFilter:
+      payment === "unpaid" || payment === "all" ? payment : "paid",
     minCgpa:
       minCgpa && /^\d{1,2}(\.\d{1,2})?$/.test(minCgpa)
         ? Number(minCgpa).toFixed(2)

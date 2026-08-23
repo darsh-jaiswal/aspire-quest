@@ -205,6 +205,28 @@ time,
 }
 
 /* --------------------------------------------------------------------------
+   Loading spinner — the registration flow's "confirming your payment" wait.
+   A progress indicator, not decoration; subject to the reduced-motion
+   override below like everything else.
+   -------------------------------------------------------------------------- */
+
+.loader {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: loader-spin 0.8s linear infinite;
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
    Reduced motion — honoured globally.
    -------------------------------------------------------------------------- */
 

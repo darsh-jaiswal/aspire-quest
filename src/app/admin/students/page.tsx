@@ -31,8 +31,11 @@ function parseFilters(
   const status = first(params.status);
   const sort = first(params.sort);
   const minCgpa = first(params.minCgpa);
+  const payment = first(params.payment);
 
   return {
+    paymentFilter:
+      payment === "unpaid" || payment === "all" ? payment : "paid",
     // Coerced to a fixed-2 decimal string; anything unparseable is dropped.
     minCgpa:
       minCgpa && /^\d{1,2}(\.\d{1,2})?$/.test(minCgpa)
@@ -112,6 +115,7 @@ export default async function StudentsPage({
           status: first(params.status),
           q: first(params.q),
           sort: first(params.sort),
+          payment: filters.paymentFilter,
         }}
         exportHref={`/admin/students/export?${exportQuery.toString()}`}
       />

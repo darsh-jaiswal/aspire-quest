@@ -12,7 +12,7 @@
  * every skipped reminder back-to-back.
  */
 
-import { asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { students } from "@/db/schema";
 import { EDITION } from "@/lib/content";
@@ -67,6 +67,11 @@ export async function runDueReminders(now = new Date()): Promise<ReminderRunResu
 
   const daysBefore = MILESTONES_DAYS_BEFORE[dueIndex]!;
 
+  // Unpaid rows are not registrations — see the "no payment, no registration"
+  // rule in the payment design spec — so they never receive event reminders.
+  // This also guarantees refCode is non-null below: the webhook's
+  // compare-and-swap sets payment_status='paid' and ref_code in the same
+  // statement, so a paid row always has one.
   const eligible = await db
     .select({
       id: students.id,
@@ -75,23 +80,30 @@ export async function runDueReminders(now = new Date()): Promise<ReminderRunResu
       refCode: students.refCode,
     })
     .from(students)
-    .where(lte(students.remindersSent, dueIndex))
+    .where(
+      and(
+        eq(students.paymentStatus, "paid"),
+        lte(students.remindersSent, dueIndex),
+      ),
+    )
     .orderBy(asc(students.id));
 
   let sent = 0;
   let failed = 0;
 
   for (const student of eligible) {
+    // Guaranteed non-null by the paymentStatus='paid' filter above.
+    const refCode = student.refCode!;
     const ok = await sendEmail({
       to: student.email,
       subject: `Aspire Quest is ${whenLabel(daysBefore)}`,
       react: EventReminderEmail({
         fullName: student.fullName,
-        refCode: student.refCode,
+        refCode,
         whenLabel: whenLabel(daysBefore),
         dateLabel: EDITION.dateLabel,
       }),
-      idempotencyKey: `event-reminder-${dueIndex}/${student.refCode}`,
+      idempotencyKey: `event-reminder-${dueIndex}/${refCode}`,
     });
 
     if (ok) {

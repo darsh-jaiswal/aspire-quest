@@ -316,6 +316,28 @@ export const FAQ: readonly FaqItem[] = [
 ];
 
 /* -------------------------------------------------------------------------
+ * Registration fee — modelled the same way as EDITION.startsAt: a value that
+ * ships correct but inert until real, and is never invented.
+ *
+ * Source: organiser decision relayed directly by the site owner in the build
+ * session, 2026-08-23 — a provisional ₹100 to unblock building the payment
+ * flow end to end. Razorpay's own Orders API refuses anything below ₹1
+ * (https://razorpay.com/docs/api/orders/create/), so any real figure this
+ * becomes must clear that floor regardless.
+ * ---------------------------------------------------------------------- */
+
+export type RegistrationFee = {
+  /** Integer paise, never a float — same discipline as CGPA. Null = not yet decided. */
+  amountPaise: number | null;
+  label: string;
+};
+
+export const REGISTRATION_FEE: RegistrationFee = {
+  amountPaise: 10000,
+  label: "₹100",
+};
+
+/* -------------------------------------------------------------------------
  * Registration constraints — single source of truth, shared with Zod schemas
  * ---------------------------------------------------------------------- */
 

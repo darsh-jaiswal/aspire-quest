@@ -11,6 +11,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -74,6 +75,25 @@ export const auditActionEnum = pgEnum("audit_action", [
   "view_bundle",
 ]);
 
+/**
+ * A student row's payment lifecycle. `pending_payment` is the default: the
+ * form has been saved but no reference code exists yet. Only the webhook
+ * handler ever moves a row to `paid` — see the compare-and-swap in
+ * src/app/api/payments/razorpay/webhook/route.ts.
+ */
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending_payment",
+  "paid",
+  "failed",
+]);
+
+/** One Razorpay order attempt. See paymentOrders below for why this is its own table. */
+export const paymentOrderStatusEnum = pgEnum("payment_order_status", [
+  "created",
+  "paid",
+  "failed",
+]);
+
 /* -------------------------------------------------------------------------
  * Students
  *
@@ -87,7 +107,14 @@ export const students = pgTable(
   "students",
   {
     id: serial("id").primaryKey(),
-    refCode: varchar("ref_code", { length: 12 }).notNull(),
+    /**
+     * Nullable: issued only when payment confirms (see paymentStatus below).
+     * A `pending_payment` row genuinely has no reference code — that rule is
+     * enforced here, not just in the UI. The unique index still holds:
+     * Postgres allows any number of NULLs through a unique index, so many
+     * unpaid rows coexisting is fine.
+     */
+    refCode: varchar("ref_code", { length: 12 }),
 
     /**
      * The Clerk account that submitted this application.
@@ -120,6 +147,17 @@ export const students = pgTable(
     status: studentStatusEnum("status").notNull().default("registered"),
     notes: text("notes"),
 
+    /**
+     * Separates a started application from a real one. Only the webhook
+     * handler's compare-and-swap UPDATE ever moves this to `paid` — see
+     * docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md.
+     */
+    paymentStatus: paymentStatusEnum("payment_status")
+      .notNull()
+      .default("pending_payment"),
+    /** Receipt trail. Set in the same statement that sets paymentStatus='paid'. */
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+
     /** Explicit, timestamped consent. Required before any bundle sharing. */
     consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
 
@@ -149,6 +187,80 @@ export const students = pgTable(
     index("students_branch_idx").on(table.branch),
     index("students_focus_area_idx").on(table.focusArea),
     index("students_status_idx").on(table.status),
+    index("students_payment_status_idx").on(table.paymentStatus),
+  ],
+);
+
+/* -------------------------------------------------------------------------
+ * Payment orders — one row per Razorpay order attempt
+ *
+ * Deliberately NOT a column on `students`. A student can abandon a payment
+ * popup, edit their form, and resubmit — which creates a second order. If the
+ * order id lived on `students`, resubmitting would overwrite it, and a late
+ * webhook for the first (superseded) order would arrive, find no matching
+ * row, and the payment would be lost with no way to recover it. Every order
+ * this table has ever seen, however old, still resolves back to its student.
+ * See payment-flow-review.md, Defect 1.
+ * ---------------------------------------------------------------------- */
+
+export const paymentOrders = pgTable(
+  "payment_orders",
+  {
+    id: serial("id").primaryKey(),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    /** How a webhook resolves back to a student. */
+    razorpayOrderId: varchar("razorpay_order_id", { length: 64 }).notNull(),
+    /**
+     * Integer paise, never a float — the same discipline this codebase
+     * applies to CGPA. The amount quoted for THIS order specifically; the
+     * webhook verifies against this column, not against current config, so a
+     * fee change mid-flight never invalidates a payment already quoted.
+     */
+    amountPaise: integer("amount_paise").notNull(),
+    currency: varchar("currency", { length: 8 }).notNull().default("INR"),
+    status: paymentOrderStatusEnum("status").notNull().default("created"),
+    razorpayPaymentId: varchar("razorpay_payment_id", { length: 64 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("payment_orders_razorpay_order_idx").on(table.razorpayOrderId),
+    index("payment_orders_student_idx").on(table.studentId),
+    index("payment_orders_status_idx").on(table.status),
+  ],
+);
+
+/* -------------------------------------------------------------------------
+ * Payment events — append-only webhook audit log
+ *
+ * Every webhook Razorpay ever sends, valid or not, parseable or not. Never
+ * deleted. If a student disputes a charge, this shows exactly what Razorpay
+ * sent and when — independent of whatever state paymentOrders/students ended
+ * up in.
+ * ---------------------------------------------------------------------- */
+
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id: serial("id").primaryKey(),
+    /** Nullable: an unparseable payload may carry no recoverable order id. */
+    razorpayOrderId: varchar("razorpay_order_id", { length: 64 }),
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    signatureValid: boolean("signature_valid").notNull(),
+    payload: jsonb("payload").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("payment_events_order_idx").on(table.razorpayOrderId),
+    index("payment_events_received_idx").on(table.receivedAt),
   ],
 );
 
@@ -395,6 +507,14 @@ export const companiesRelations = relations(companies, ({ many }) => ({
 
 export const studentsRelations = relations(students, ({ many }) => ({
   bundleLinks: many(bundleStudents),
+  paymentOrders: many(paymentOrders),
+}));
+
+export const paymentOrdersRelations = relations(paymentOrders, ({ one }) => ({
+  student: one(students, {
+    fields: [paymentOrders.studentId],
+    references: [students.id],
+  }),
 }));
 
 export const bundlesRelations = relations(bundles, ({ one, many }) => ({
@@ -449,6 +569,10 @@ export const recruiterMembershipsRelations = relations(
 
 export type Student = typeof students.$inferSelect;
 export type NewStudent = typeof students.$inferInsert;
+export type PaymentOrder = typeof paymentOrders.$inferSelect;
+export type NewPaymentOrder = typeof paymentOrders.$inferInsert;
+export type PaymentEvent = typeof paymentEvents.$inferSelect;
+export type NewPaymentEvent = typeof paymentEvents.$inferInsert;
 export type Company = typeof companies.$inferSelect;
 export type NewCompany = typeof companies.$inferInsert;
 export type Bundle = typeof bundles.$inferSelect;

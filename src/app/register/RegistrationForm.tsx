@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId, useRef, useState } from "react";
+import Script from "next/script";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   Checkbox,
@@ -11,8 +12,8 @@ import {
   Textarea,
   describedBy,
 } from "@/components/ui/Field";
-import { BRANCHES, FOCUS_AREAS, REGISTRATION } from "@/lib/content";
-import { registerStudent, type RegisterState } from "./actions";
+import { BRANCHES, FOCUS_AREAS, REGISTRATION, REGISTRATION_FEE } from "@/lib/content";
+import { submitRegistration, type RegisterState, type SubmittedValues } from "./actions";
 
 type UploadState =
   | { phase: "empty" }
@@ -20,7 +21,42 @@ type UploadState =
   | { phase: "done"; key: string; name: string; bytes: number }
   | { phase: "error"; message: string };
 
+/**
+ * Form → Review → (payment, if a fee is set) → Success. A review screen
+ * rather than a confirmation checkbox: a checkbox gets ticked reflexively,
+ * while a displayed "CGPA: 7.00" makes a wrong value visible while it is
+ * still free to fix. See the design spec, Part 3.
+ */
+type Phase = "editing" | "review" | "confirming" | "confirming_timeout" | "paid";
+
 const INITIAL: RegisterState = { status: "idle" };
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 45; // 90s
+
+type RazorpayHandlerResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description: string;
+  prefill: { name: string; email: string; contact: string };
+  theme?: { color: string };
+  handler: (response: RazorpayHandlerResponse) => void;
+  modal?: { ondismiss?: () => void };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
 
 // Bytes go browser -> this function -> Blob, since a private Blob store
 // doesn't support the direct-to-Blob client-token flow (its CORS preflight
@@ -66,6 +102,21 @@ function uploadResume(
   });
 }
 
+function readFormValues(form: HTMLFormElement): SubmittedValues {
+  const data = new FormData(form);
+  return {
+    fullName: String(data.get("fullName") ?? ""),
+    phone: String(data.get("phone") ?? ""),
+    cgpa: String(data.get("cgpa") ?? ""),
+    programme: String(data.get("programme") ?? ""),
+    branch: String(data.get("branch") ?? ""),
+    year: String(data.get("year") ?? ""),
+    focusArea: String(data.get("focusArea") ?? ""),
+    skills: String(data.get("skills") ?? ""),
+    consent: data.get("consent") === "on",
+  };
+}
+
 export function RegistrationForm({
   email,
   suggestedName,
@@ -73,10 +124,17 @@ export function RegistrationForm({
   email: string;
   suggestedName: string;
 }) {
-  const [state, formAction, pending] = useActionState(registerStudent, INITIAL);
+  const [state, formAction, pending] = useActionState(submitRegistration, INITIAL);
   const [file, setFile] = useState<UploadState>({ phase: "empty" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const id = useId();
+
+  const [phase, setPhase] = useState<Phase>("editing");
+  const [reviewValues, setReviewValues] = useState<SubmittedValues | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const [finalRefCode, setFinalRefCode] = useState<string | null>(null);
+  const [checkoutReady, setCheckoutReady] = useState(false);
 
   const errors = state.status === "error" ? (state.errors ?? {}) : {};
   const values = state.status === "error" ? state.values : undefined;
@@ -86,6 +144,81 @@ export function RegistrationForm({
   // on every new error — otherwise React drops what the student typed the
   // moment a `<form action>` submission completes, success or failure.
   const formKey = state.status === "error" ? JSON.stringify(state) : "initial";
+
+  // A fee is configured and the row is saved — open Razorpay Checkout. The
+  // browser's role stops here: `handler` only moves the UI to "confirming".
+  // The webhook, not this callback, is what actually completes registration.
+  useEffect(() => {
+    if (state.status !== "awaiting_payment") return;
+    if (!checkoutReady || !window.Razorpay) return;
+
+    const checkout = new window.Razorpay({
+      key: state.keyId,
+      amount: state.amountPaise,
+      currency: "INR",
+      order_id: state.razorpayOrderId,
+      name: "Aspire Quest",
+      description: "Registration fee",
+      prefill: { name: state.fullName, email: state.email, contact: state.phone },
+      theme: { color: "#0d0d0d" },
+      handler: () => setPhase("confirming"),
+      modal: {
+        ondismiss: () => {
+          setPaymentNotice(
+            "Payment was not completed. Your details are saved — you can try again.",
+          );
+          setPhase("review");
+        },
+      },
+    });
+
+    checkout.open();
+  }, [state, checkoutReady]);
+
+  // Polls for the webhook's result. Display-only — see /api/payments/status.
+  useEffect(() => {
+    if (phase !== "confirming") return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+
+      try {
+        const res = await fetch("/api/payments/status", { cache: "no-store" });
+        const data = (await res.json()) as {
+          found: boolean;
+          paymentStatus?: string;
+          refCode?: string | null;
+        };
+        if (data.found && data.paymentStatus === "paid" && data.refCode) {
+          if (!cancelled) {
+            setFinalRefCode(data.refCode);
+            setPhase("paid");
+          }
+          return;
+        }
+      } catch {
+        // Network hiccup — keep polling rather than failing the student out.
+      }
+
+      if (cancelled) return;
+      if (attempts >= POLL_MAX_ATTEMPTS) {
+        setPhase("confirming_timeout");
+        return;
+      }
+      timer = setTimeout(poll, POLL_INTERVAL_MS);
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phase]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0];
@@ -127,320 +260,481 @@ export function RegistrationForm({
     }
   }
 
+  function handleContinueToReview() {
+    const form = formRef.current;
+    if (!form) return;
+    if (!form.reportValidity()) return;
+    setReviewValues(readFormValues(form));
+    setPaymentNotice(null);
+    setPhase("review");
+  }
+
+  // Free-flow path: no fee is configured (EDITION-style TBA), so the action
+  // completes registration directly with no payment step at all.
   if (state.status === "success") {
     return <SuccessPanel refCode={state.refCode} />;
+  }
+
+  if (phase === "paid" && finalRefCode) {
+    return <SuccessPanel refCode={finalRefCode} />;
+  }
+
+  if (phase === "confirming" || phase === "confirming_timeout") {
+    return (
+      <ConfirmingPanel timedOut={phase === "confirming_timeout"} email={email} />
+    );
   }
 
   const uploadBusy = file.phase === "uploading";
   const resumeError =
     file.phase === "error" ? file.message : errors.resumeBlobKey;
+  const canContinue = !pending && !uploadBusy && file.phase === "done";
+  const feeSet = REGISTRATION_FEE.amountPaise !== null;
+  // A server-side error (validation failure, save failure, already-registered)
+  // falls back to the editable form with the message visible, even if the
+  // student was on the review screen when they submitted.
+  const inReview = phase === "review" && state.status !== "error";
 
   return (
-    <form action={formAction} className="relative" noValidate>
-      <Honeypot name="website" />
-
-      {state.status === "error" ? (
-        <div
-          role="alert"
-          className="mb-8 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical"
-        >
-          {state.message}
-        </div>
+    <>
+      {feeSet ? (
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="afterInteractive"
+          onLoad={() => setCheckoutReady(true)}
+        />
       ) : null}
 
-      <fieldset className="border-0 p-0">
-        <legend className="text-eyebrow font-semibold uppercase text-muted">
-          About you
-        </legend>
+      <form ref={formRef} action={formAction} className="relative" noValidate>
+        <Honeypot name="website" />
 
-        <div key={`${formKey}-about`} className="mt-6 grid gap-6 sm:grid-cols-2">
-          <Field
-            label="Full name"
-            htmlFor={fid("fullName")}
-            error={errors.fullName}
-            required
+        {state.status === "error" ? (
+          <div
+            role="alert"
+            className="mb-8 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical"
           >
-            <Input
-              id={fid("fullName")}
-              name="fullName"
-              autoComplete="name"
-              required
-              defaultValue={values?.fullName ?? suggestedName}
-              aria-invalid={errors.fullName ? true : undefined}
-              aria-describedby={describedBy(fid("fullName"), undefined, errors.fullName)}
-            />
-          </Field>
-
-          <div>
-            <span className="block text-sm font-semibold text-navy">
-              Email
-            </span>
-            <p className="mt-1 text-xs text-muted">
-              From the account you signed in with. Shortlist updates go here.
-            </p>
-            <p className="mt-2 rounded border border-hairline-strong bg-sunken px-3.5 py-2.5 text-slate">
-              {email}
-            </p>
+            {state.message}
           </div>
+        ) : null}
 
-          <Field
-            label="Mobile number"
-            htmlFor={fid("phone")}
-            error={errors.phone}
-            hint="10 digits, Indian mobile."
-            required
-          >
-            <Input
-              id={fid("phone")}
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              required
-              className="tabular"
-              defaultValue={values?.phone}
-              aria-invalid={errors.phone ? true : undefined}
-              aria-describedby={describedBy(fid("phone"), "hint", errors.phone)}
-            />
-          </Field>
+        {inReview ? (
+          <ReviewSummary
+            values={reviewValues}
+            email={email}
+            resumeName={file.phase === "done" ? file.name : undefined}
+            notice={paymentNotice}
+          />
+        ) : null}
 
-          <Field
-            label="CGPA"
-            htmlFor={fid("cgpa")}
-            error={errors.cgpa}
-            hint="Current cumulative, e.g. 7.85."
-            required
-          >
-            <Input
-              id={fid("cgpa")}
-              name="cgpa"
-              inputMode="decimal"
-              placeholder="7.85"
-              required
-              className="tabular"
-              defaultValue={values?.cgpa}
-              aria-invalid={errors.cgpa ? true : undefined}
-              aria-describedby={describedBy(fid("cgpa"), "hint", errors.cgpa)}
-            />
-          </Field>
-        </div>
-      </fieldset>
+        <div className={inReview ? "hidden" : undefined}>
+          <fieldset className="border-0 p-0">
+            <legend className="text-eyebrow font-semibold uppercase text-muted">
+              About you
+            </legend>
 
-      <fieldset className="mt-12 border-0 p-0">
-        <legend className="text-eyebrow font-semibold uppercase text-muted">
-          Your programme
-        </legend>
+            <div key={`${formKey}-about`} className="mt-6 grid gap-6 sm:grid-cols-2">
+              <Field
+                label="Full name"
+                htmlFor={fid("fullName")}
+                error={errors.fullName}
+                required
+              >
+                <Input
+                  id={fid("fullName")}
+                  name="fullName"
+                  autoComplete="name"
+                  required
+                  defaultValue={values?.fullName ?? suggestedName}
+                  aria-invalid={errors.fullName ? true : undefined}
+                  aria-describedby={describedBy(fid("fullName"), undefined, errors.fullName)}
+                />
+              </Field>
 
-        <div key={`${formKey}-programme`} className="mt-6 grid gap-6 sm:grid-cols-3">
-          <Field
-            label="Programme"
-            htmlFor={fid("programme")}
-            error={errors.programme}
-            required
-          >
-            <Select
-              id={fid("programme")}
-              name="programme"
-              required
-              defaultValue={values?.programme ?? ""}
+              <div>
+                <span className="block text-sm font-semibold text-navy">
+                  Email
+                </span>
+                <p className="mt-1 text-xs text-muted">
+                  From the account you signed in with. Shortlist updates go here.
+                </p>
+                <p className="mt-2 rounded border border-hairline-strong bg-sunken px-3.5 py-2.5 text-slate">
+                  {email}
+                </p>
+              </div>
+
+              <Field
+                label="Mobile number"
+                htmlFor={fid("phone")}
+                error={errors.phone}
+                hint="10 digits, Indian mobile."
+                required
+              >
+                <Input
+                  id={fid("phone")}
+                  name="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  required
+                  className="tabular"
+                  defaultValue={values?.phone}
+                  aria-invalid={errors.phone ? true : undefined}
+                  aria-describedby={describedBy(fid("phone"), "hint", errors.phone)}
+                />
+              </Field>
+
+              <Field
+                label="CGPA"
+                htmlFor={fid("cgpa")}
+                error={errors.cgpa}
+                hint="Current cumulative, e.g. 7.85."
+                required
+              >
+                <Input
+                  id={fid("cgpa")}
+                  name="cgpa"
+                  inputMode="decimal"
+                  placeholder="7.85"
+                  required
+                  className="tabular"
+                  defaultValue={values?.cgpa}
+                  aria-invalid={errors.cgpa ? true : undefined}
+                  aria-describedby={describedBy(fid("cgpa"), "hint", errors.cgpa)}
+                />
+              </Field>
+            </div>
+          </fieldset>
+
+          <fieldset className="mt-12 border-0 p-0">
+            <legend className="text-eyebrow font-semibold uppercase text-muted">
+              Your programme
+            </legend>
+
+            <div key={`${formKey}-programme`} className="mt-6 grid gap-6 sm:grid-cols-3">
+              <Field
+                label="Programme"
+                htmlFor={fid("programme")}
+                error={errors.programme}
+                required
+              >
+                <Select
+                  id={fid("programme")}
+                  name="programme"
+                  required
+                  defaultValue={values?.programme ?? ""}
+                >
+                  <option value="" disabled>
+                    Select
+                  </option>
+                  <option value="B.Tech">B.Tech</option>
+                  <option value="MBA.Tech">MBA.Tech</option>
+                </Select>
+              </Field>
+
+              <Field
+                label="Branch"
+                htmlFor={fid("branch")}
+                error={errors.branch}
+                required
+              >
+                <Select
+                  id={fid("branch")}
+                  name="branch"
+                  required
+                  defaultValue={values?.branch ?? ""}
+                >
+                  <option value="" disabled>
+                    Select
+                  </option>
+                  {BRANCHES.map((branch) => (
+                    <option key={branch.code} value={branch.code}>
+                      {branch.name} ({branch.programme})
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Year" htmlFor={fid("year")} error={errors.year} required>
+                <Select
+                  id={fid("year")}
+                  name="year"
+                  required
+                  defaultValue={values?.year ?? ""}
+                >
+                  <option value="" disabled>
+                    Select
+                  </option>
+                  {REGISTRATION.years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          </fieldset>
+
+          <fieldset key={`${formKey}-focus`} className="mt-12 border-0 p-0">
+            <legend className="text-eyebrow font-semibold uppercase text-muted">
+              What you want to be considered for
+            </legend>
+
+            <p className="mt-3 text-sm text-muted">
+              Pick one. This is what your candidate bundle is built from.
+            </p>
+
+            <div
+              role="radiogroup"
+              aria-label="Focus area"
+              className="mt-5 grid gap-px overflow-hidden rounded border border-hairline bg-hairline sm:grid-cols-2"
             >
-              <option value="" disabled>
-                Select
-              </option>
-              <option value="B.Tech">B.Tech</option>
-              <option value="MBA.Tech">MBA.Tech</option>
-            </Select>
-          </Field>
-
-          <Field
-            label="Branch"
-            htmlFor={fid("branch")}
-            error={errors.branch}
-            required
-          >
-            <Select
-              id={fid("branch")}
-              name="branch"
-              required
-              defaultValue={values?.branch ?? ""}
-            >
-              <option value="" disabled>
-                Select
-              </option>
-              {BRANCHES.map((branch) => (
-                <option key={branch.code} value={branch.code}>
-                  {branch.name} ({branch.programme})
-                </option>
+              {FOCUS_AREAS.map((area) => (
+                <label
+                  key={area.code}
+                  className="group flex cursor-pointer gap-3.5 bg-surface p-5 transition-colors hover:bg-raised has-[:checked]:bg-amber-wash"
+                >
+                  <input
+                    type="radio"
+                    name="focusArea"
+                    value={area.code}
+                    required
+                    defaultChecked={values?.focusArea === area.code}
+                    className="mt-1 size-4 shrink-0 accent-[var(--color-navy)]"
+                  />
+                  <span>
+                    <span className="block font-semibold text-navy">
+                      {area.name}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate">
+                      {area.summary}
+                    </span>
+                  </span>
+                </label>
               ))}
-            </Select>
-          </Field>
+            </div>
+            {errors.focusArea ? (
+              <p className="mt-2 text-sm text-critical" role="alert">
+                {errors.focusArea}
+              </p>
+            ) : null}
 
-          <Field label="Year" htmlFor={fid("year")} error={errors.year} required>
-            <Select
-              id={fid("year")}
-              name="year"
-              required
-              defaultValue={values?.year ?? ""}
+            <Field
+              label="Skills"
+              htmlFor={fid("skills")}
+              error={errors.skills}
+              hint="Comma separated, up to 12. e.g. Python, ROS, PCB design"
+              className="mt-8"
             >
-              <option value="" disabled>
-                Select
-              </option>
-              {REGISTRATION.years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      </fieldset>
+              <Textarea
+                id={fid("skills")}
+                name="skills"
+                rows={2}
+                className="min-h-0"
+                defaultValue={values?.skills}
+                aria-describedby={describedBy(fid("skills"), "hint", errors.skills)}
+              />
+            </Field>
+          </fieldset>
 
-      <fieldset key={`${formKey}-focus`} className="mt-12 border-0 p-0">
-        <legend className="text-eyebrow font-semibold uppercase text-muted">
-          What you want to be considered for
-        </legend>
+          <fieldset className="mt-12 border-0 p-0">
+            <legend className="text-eyebrow font-semibold uppercase text-muted">
+              Resume
+            </legend>
 
-        <p className="mt-3 text-sm text-muted">
-          Pick one. This is what your candidate bundle is built from.
-        </p>
-
-        <div
-          role="radiogroup"
-          aria-label="Focus area"
-          className="mt-5 grid gap-px overflow-hidden rounded border border-hairline bg-hairline sm:grid-cols-2"
-        >
-          {FOCUS_AREAS.map((area) => (
-            <label
-              key={area.code}
-              className="group flex cursor-pointer gap-3.5 bg-surface p-5 transition-colors hover:bg-raised has-[:checked]:bg-amber-wash"
+            <Field
+              label="Resume"
+              htmlFor={fid("resume")}
+              error={resumeError}
+              hint={`${REGISTRATION.resumeAcceptedLabel}, up to ${REGISTRATION.resumeMaxLabel}.`}
+              required
+              className="mt-6"
             >
               <input
-                type="radio"
-                name="focusArea"
-                value={area.code}
-                required
-                defaultChecked={values?.focusArea === area.code}
-                className="mt-1 size-4 shrink-0 accent-[var(--color-navy)]"
+                ref={fileInputRef}
+                id={fid("resume")}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                aria-invalid={resumeError ? true : undefined}
+                aria-describedby={describedBy(fid("resume"), "hint", resumeError)}
+                className="block w-full cursor-pointer rounded border border-hairline-strong bg-surface text-sm text-slate file:mr-4 file:cursor-pointer file:border-0 file:border-r file:border-hairline-strong file:bg-raised file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-navy hover:file:bg-sunken"
               />
-              <span>
-                <span className="block font-semibold text-navy">
-                  {area.name}
-                </span>
-                <span className="mt-1 block text-sm text-slate">
-                  {area.summary}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-        {errors.focusArea ? (
-          <p className="mt-2 text-sm text-critical" role="alert">
-            {errors.focusArea}
-          </p>
-        ) : null}
 
-        <Field
-          label="Skills"
-          htmlFor={fid("skills")}
-          error={errors.skills}
-          hint="Comma separated, up to 12. e.g. Python, ROS, PCB design"
-          className="mt-8"
-        >
-          <Textarea
-            id={fid("skills")}
-            name="skills"
-            rows={2}
-            className="min-h-0"
-            defaultValue={values?.skills}
-            aria-describedby={describedBy(fid("skills"), "hint", errors.skills)}
-          />
-        </Field>
-      </fieldset>
+              <div aria-live="polite" className="mt-3 text-sm">
+                {file.phase === "uploading" ? (
+                  <p className="text-muted">
+                    Uploading {file.name} —{" "}
+                    <span data-figure className="font-semibold text-navy">
+                      {file.percent}%
+                    </span>
+                  </p>
+                ) : null}
+                {file.phase === "done" ? (
+                  <p className="font-semibold text-positive">
+                    {file.name} uploaded.
+                  </p>
+                ) : null}
+              </div>
+            </Field>
 
-      <fieldset className="mt-12 border-0 p-0">
-        <legend className="text-eyebrow font-semibold uppercase text-muted">
-          Resume
-        </legend>
-
-        <Field
-          label="Resume"
-          htmlFor={fid("resume")}
-          error={resumeError}
-          hint={`${REGISTRATION.resumeAcceptedLabel}, up to ${REGISTRATION.resumeMaxLabel}.`}
-          required
-          className="mt-6"
-        >
-          <input
-            ref={fileInputRef}
-            id={fid("resume")}
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            aria-invalid={resumeError ? true : undefined}
-            aria-describedby={describedBy(fid("resume"), "hint", resumeError)}
-            className="block w-full cursor-pointer rounded border border-hairline-strong bg-surface text-sm text-slate file:mr-4 file:cursor-pointer file:border-0 file:border-r file:border-hairline-strong file:bg-raised file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-navy hover:file:bg-sunken"
-          />
-
-          <div aria-live="polite" className="mt-3 text-sm">
-            {file.phase === "uploading" ? (
-              <p className="text-muted">
-                Uploading {file.name} —{" "}
-                <span data-figure className="font-semibold text-navy">
-                  {file.percent}%
-                </span>
-              </p>
-            ) : null}
             {file.phase === "done" ? (
-              <p className="font-semibold text-positive">
-                {file.name} uploaded.
-              </p>
+              <>
+                <input type="hidden" name="resumeBlobKey" value={file.key} />
+                <input type="hidden" name="resumeFilename" value={file.name} />
+                <input type="hidden" name="resumeBytes" value={file.bytes} />
+              </>
             ) : null}
+          </fieldset>
+
+          <div key={`${formKey}-consent`} className="mt-12 rounded border border-hairline bg-raised p-6">
+            <Checkbox
+              id={fid("consent")}
+              name="consent"
+              required
+              defaultChecked={values?.consent}
+              error={errors.consent}
+              label={
+                <>
+                  I agree that MPSTME may store the details and resume I have
+                  submitted, and share them with the partner companies shortlisting
+                  for Aspire Quest. I understand my resume is kept in private
+                  storage, that every access to it is logged, and that my records
+                  are deleted after the stated retention period.
+                </>
+              }
+            />
           </div>
-        </Field>
 
-        {file.phase === "done" ? (
-          <>
-            <input type="hidden" name="resumeBlobKey" value={file.key} />
-            <input type="hidden" name="resumeFilename" value={file.name} />
-            <input type="hidden" name="resumeBytes" value={file.bytes} />
-          </>
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="accent"
+              disabled={!canContinue}
+              onClick={handleContinueToReview}
+            >
+              Continue to review
+            </Button>
+            <p className="text-sm text-muted">
+              {file.phase === "done"
+                ? "Check your details on the next screen before it's final."
+                : "Upload your resume to continue."}
+            </p>
+          </div>
+        </div>
+
+        {inReview ? (
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Button type="button" variant="outline" onClick={() => setPhase("editing")}>
+              Edit
+            </Button>
+            <Button type="submit" variant="accent" disabled={pending}>
+              {pending
+                ? "Saving…"
+                : feeSet
+                  ? `Confirm & pay ${REGISTRATION_FEE.label}`
+                  : "Confirm & submit"}
+            </Button>
+          </div>
         ) : null}
-      </fieldset>
+      </form>
+    </>
+  );
+}
 
-      <div key={`${formKey}-consent`} className="mt-12 rounded border border-hairline bg-raised p-6">
-        <Checkbox
-          id={fid("consent")}
-          name="consent"
-          required
-          defaultChecked={values?.consent}
-          error={errors.consent}
-          label={
-            <>
-              I agree that MPSTME may store the details and resume I have
-              submitted, and share them with the partner companies shortlisting
-              for Aspire Quest. I understand my resume is kept in private
-              storage, that every access to it is logged, and that my records
-              are deleted after the stated retention period.
-            </>
-          }
-        />
-      </div>
+function ReviewSummary({
+  values,
+  email,
+  resumeName,
+  notice,
+}: {
+  values: SubmittedValues | null;
+  email: string;
+  resumeName: string | undefined;
+  notice: string | null;
+}) {
+  if (!values) return null;
 
-      <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button
-          type="submit"
-          variant="accent"
-          disabled={pending || uploadBusy || file.phase !== "done"}
-        >
-          {pending ? "Submitting…" : "Submit application"}
-        </Button>
-        <p className="text-sm text-muted">
-          {file.phase === "done"
-            ? "Your reference code appears on the next screen."
-            : "Upload your resume to enable submission."}
+  const branch = BRANCHES.find((b) => b.code === values.branch);
+  const focusArea = FOCUS_AREAS.find((f) => f.code === values.focusArea);
+
+  const rows: { label: string; value: string }[] = [
+    { label: "Full name", value: values.fullName },
+    { label: "Email", value: email },
+    { label: "Mobile", value: values.phone },
+    { label: "CGPA", value: values.cgpa },
+    { label: "Programme", value: values.programme },
+    { label: "Branch", value: branch ? `${branch.name} (${branch.code})` : values.branch },
+    { label: "Year", value: values.year },
+    { label: "Focus area", value: focusArea?.name ?? values.focusArea },
+    { label: "Skills", value: values.skills || "—" },
+    { label: "Resume", value: resumeName ?? "—" },
+  ];
+
+  return (
+    <div className="mb-10 rounded border border-hairline bg-raised p-6 md:p-8">
+      <p className="text-eyebrow font-semibold uppercase text-muted">
+        Review before you pay
+      </p>
+      <h2 className="mt-3 text-h3 font-semibold text-navy">
+        Check every field. This is the last point it&rsquo;s free to fix.
+      </h2>
+
+      {notice ? (
+        <p role="alert" className="mt-4 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical">
+          {notice}
         </p>
+      ) : null}
+
+      <dl className="mt-6 border-t border-hairline">
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className="grid grid-cols-[10rem_1fr] gap-4 border-b border-hairline py-3"
+          >
+            <dt className="text-sm font-semibold text-slate">{row.label}</dt>
+            <dd className="text-sm text-navy">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-6 flex items-baseline justify-between rounded border border-hairline-strong bg-surface px-5 py-4">
+        <span className="text-sm font-semibold text-slate">
+          {REGISTRATION_FEE.amountPaise !== null ? "Registration fee" : "Registration"}
+        </span>
+        <span data-figure className="text-h3 font-semibold text-navy">
+          {REGISTRATION_FEE.amountPaise !== null ? REGISTRATION_FEE.label : "Free"}
+        </span>
       </div>
-    </form>
+    </div>
+  );
+}
+
+function ConfirmingPanel({ timedOut, email }: { timedOut: boolean; email: string }) {
+  return (
+    <div className="rounded border border-hairline bg-raised p-8 md:p-12">
+      <p className="text-eyebrow font-semibold uppercase text-muted">
+        {timedOut ? "Still confirming" : "Confirming your payment"}
+      </p>
+      <h2 className="mt-5 text-h2 font-semibold">
+        {timedOut ? "This is taking a while." : "Almost there…"}
+      </h2>
+      {timedOut ? (
+        <p className="mt-4 max-w-[52ch] text-slate">
+          Your payment is still being confirmed. This does not mean it failed —
+          confirmation runs independently of this page. Your reference code
+          will arrive at <span className="font-semibold text-navy">{email}</span>{" "}
+          as soon as it&rsquo;s through; there is no need to pay again or resubmit.
+        </p>
+      ) : (
+        <>
+          <span className="loader mt-6 block text-navy" aria-hidden="true" />
+          <p className="mt-6 max-w-[52ch] text-slate">
+            Do not close this tab. We&rsquo;re waiting for Razorpay to confirm your
+            payment — this usually takes a few seconds.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

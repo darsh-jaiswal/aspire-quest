@@ -31,17 +31,27 @@ Always write `₹` directly (UTF-8). Source material renders it as mojibake; the
 | Resume storage | Vercel Blob, **private**, direct client uploads |
 | Auth | Clerk — admin + recruiter only (**not yet wired**) |
 | Rate limiting | Upstash Redis |
+| Payments | Razorpay — direct SDK integration, not a Vercel Marketplace product (the payments category offers Stripe only) |
 | Hosting | Vercel, Fluid Compute. No `runtime = 'edge'` |
 
-**Students sign in with Google or Microsoft.** Registration is gated on a verified
-identity, so the email address on an application is one the applicant demonstrably
-controls rather than one they typed. Browsing the site never requires an account —
-only registering does. This reverses an earlier decision to have no student accounts,
-made before there was a plan to charge a registration fee (payment is Stage 2,
-still unbuilt); see
-`docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md`. The Resend
-100/day cap that partly motivated the original decision remains a live constraint on
-confirmation and reminder volume.
+**Students sign in with Google or Microsoft, and registration is paid.** Registration
+is gated on a verified identity, so the email address on an application is one the
+applicant demonstrably controls rather than one they typed. Browsing the site never
+requires an account — only registering does. This reverses an earlier decision to
+have no student accounts, made before there was a plan to charge a registration fee;
+see `docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md`. The
+Resend 100/day cap that partly motivated the original decision remains a live
+constraint on confirmation and reminder volume.
+
+The fee itself (`REGISTRATION_FEE` in `src/lib/content.ts`) is currently a real,
+sourced figure — ₹100, a provisional amount set directly by the site owner to unblock
+building the flow, not yet organiser-confirmed as the final fee. It is modelled the
+same way `EDITION.startsAt` is: setting `amountPaise` back to `null` makes registration
+free again with no code change elsewhere. **Razorpay itself is not yet configured
+anywhere** (`NEXT_PUBLIC_RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` /
+`RAZORPAY_WEBHOOK_SECRET` are unset) — until an account exists and test-mode keys are
+set, registration with a fee configured fails closed with a clear "temporarily
+unavailable" message rather than silently accepting an unpayable application.
 
 ---
 
@@ -75,6 +85,7 @@ The public site renders without any environment at all — including on Vercel, 
 2. ⬜ **Vercel Blob**, private store → `BLOB_READ_WRITE_TOKEN` — resume upload will fail until this exists
 3. ⬜ **Upstash Redis** via the Marketplace → `UPSTASH_REDIS_REST_*` — public forms reject in production without it (see `src/lib/rate-limit.ts`; fails **closed**, on purpose)
 4. ⬜ **Clerk** → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` — `/admin` and `/portal` return 500 until this exists
+5. ⬜ **Razorpay** → `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` — no account exists yet. With `REGISTRATION_FEE.amountPaise` set (it is, currently ₹100), registration fails closed with a clear error until these are set; set `amountPaise` back to `null` in `src/lib/content.ts` to keep registration free in the meantime
 
 Local dev picks these up from `.env.local` (pulled via `vercel env pull .env.local`, gitignored). After a fresh `db:push` against a new database, run it non-interactively with `npm run db:push -- --force` if there's no TTY (CI, an agent) — safe on an empty database; there is nothing to lose data from yet.
 

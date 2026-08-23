@@ -8,7 +8,8 @@ import { addToBundle, updateStatuses, type BulkState } from "./actions";
 
 type Row = {
   id: number;
-  refCode: string;
+  /** Null for an unpaid row — issued only once payment confirms. */
+  refCode: string | null;
   fullName: string;
   email: string;
   branch: string;
@@ -18,6 +19,7 @@ type Row = {
   focusArea: string;
   skills: string[];
   status: string;
+  paymentStatus: string;
 };
 
 type BundleOption = { id: number; label: string };
@@ -232,7 +234,7 @@ export function ScreeningTable({
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="tabular text-xs text-muted">
-                      {row.refCode}
+                      {row.refCode ?? "Unpaid"}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">

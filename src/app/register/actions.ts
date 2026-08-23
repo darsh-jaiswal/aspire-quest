@@ -5,11 +5,13 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { waitUntil } from "@vercel/functions";
 import { db } from "@/db";
-import { students } from "@/db/schema";
+import { paymentOrders, students } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
 import { RegistrationConfirmationEmail } from "@/emails/RegistrationConfirmation";
 import { generateRefCode } from "@/lib/ref-code";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { createRazorpayOrder, isRazorpayConfigured } from "@/lib/razorpay";
+import { REGISTRATION_FEE } from "@/lib/content";
 import { fieldErrors, studentRegistrationSchema } from "@/lib/validation";
 
 /**
@@ -41,7 +43,24 @@ export type RegisterState =
       errors?: Record<string, string>;
       values?: SubmittedValues;
     }
-  | { status: "success"; refCode: string };
+  /** Fee is unset (EDITION-style TBA) — registration completed with no payment step. */
+  | { status: "success"; refCode: string }
+  /**
+   * Fee is set. The student row is saved as pending_payment and a Razorpay
+   * order exists; the client opens Checkout next. Nothing here is a
+   * registration yet — see the "no payment, no registration" rule in the
+   * design spec.
+   */
+  | {
+      status: "awaiting_payment";
+      studentId: number;
+      razorpayOrderId: string;
+      amountPaise: number;
+      keyId: string;
+      fullName: string;
+      email: string;
+      phone: string;
+    };
 
 /** Postgres unique-violation. */
 const UNIQUE_VIOLATION = "23505";
@@ -88,7 +107,29 @@ function submittedValuesFrom(formData: FormData): SubmittedValues {
   };
 }
 
-export async function registerStudent(
+/** Best-effort — the row already saved. A failed confirmation email must never fail a registration. */
+function sendConfirmationEmail(studentId: number, email: string, fullName: string, refCode: string) {
+  waitUntil(
+    sendEmail({
+      to: email,
+      subject: `You're registered for Aspire Quest — ${refCode}`,
+      react: RegistrationConfirmationEmail({ fullName, refCode }),
+      idempotencyKey: `registration-confirmation/${refCode}`,
+    })
+      .then((sent) => {
+        if (!sent) return;
+        return db
+          .update(students)
+          .set({ confirmationEmailSentAt: new Date() })
+          .where(eq(students.id, studentId));
+      })
+      .catch((error) => {
+        console.error("[register] confirmation email follow-up failed:", error);
+      }),
+  );
+}
+
+export async function submitRegistration(
   _prev: RegisterState,
   formData: FormData,
 ): Promise<RegisterState> {
@@ -164,108 +205,148 @@ export async function registerStudent(
   }
 
   const input = parsed.data;
+  const feeAmount = REGISTRATION_FEE.amountPaise;
 
-  // Retry on the (rare) ref-code collision. Three attempts is generous given
-  // the code space; beyond that something else is wrong.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const refCode = generateRefCode();
+  if (feeAmount !== null && !isRazorpayConfigured()) {
+    console.error("[register] a fee is set but Razorpay is not configured.");
+    return {
+      status: "error",
+      message: "Registration is temporarily unavailable. Please try again shortly.",
+      values,
+    };
+  }
 
-    try {
-      const [inserted] = await db
-        .insert(students)
-        .values({
-          refCode,
-          clerkUserId: userId,
-          fullName: input.fullName,
-          email: input.email,
-          phone: input.phone,
-          branch: input.branch,
-          programme: input.programme,
-          year: input.year,
-          cgpa: input.cgpa,
-          focusArea: input.focusArea as "core_dev" | "aiml" | "robotics" | "other",
-          skills: input.skills,
-          resumeBlobKey: input.resumeBlobKey,
-          resumeFilename: input.resumeFilename,
-          resumeBytes: input.resumeBytes,
-          consentAt: new Date(),
-        })
-        .returning({ id: students.id });
+  // Insert or, if this account already has a row, update it — but ONLY while
+  // that row is still pending_payment. `setWhere` makes the update a no-op
+  // (returns nothing) against a row that is already paid, which is what lets
+  // us tell "editing an abandoned attempt" apart from "trying to re-register
+  // after paying" below. See payment-flow-review.md — this is the mechanism
+  // that lets a student return to an abandoned attempt and resubmit.
+  const editableFields = {
+    fullName: input.fullName,
+    email: input.email,
+    phone: input.phone,
+    branch: input.branch,
+    programme: input.programme,
+    year: input.year,
+    cgpa: input.cgpa,
+    focusArea: input.focusArea as "core_dev" | "aiml" | "robotics" | "other",
+    skills: input.skills,
+    resumeBlobKey: input.resumeBlobKey,
+    resumeFilename: input.resumeFilename,
+    resumeBytes: input.resumeBytes,
+    consentAt: new Date(),
+  };
 
-      // Best-effort — the registration already saved. A failed confirmation
-      // email must never turn into a failed registration. waitUntil keeps
-      // this running after the response is sent, instead of racing the
-      // function's teardown.
-      if (inserted) {
-        const studentId = inserted.id;
-        waitUntil(
-          sendEmail({
-            to: input.email,
-            subject: `You're registered for Aspire Quest — ${refCode}`,
-            react: RegistrationConfirmationEmail({
-              fullName: input.fullName,
-              refCode,
-            }),
-            idempotencyKey: `registration-confirmation/${refCode}`,
-          })
-            .then((sent) => {
-              if (!sent) return;
-              return db
-                .update(students)
-                .set({ confirmationEmailSentAt: new Date() })
-                .where(eq(students.id, studentId));
-            })
-            .catch((error) => {
-              console.error(
-                "[register] confirmation email follow-up failed:",
-                error,
-              );
-            }),
-        );
-      }
+  let studentId: number;
+  try {
+    const [row] = await db
+      .insert(students)
+      .values({ clerkUserId: userId, ...editableFields })
+      .onConflictDoUpdate({
+        target: students.clerkUserId,
+        set: { ...editableFields, updatedAt: new Date() },
+        setWhere: eq(students.paymentStatus, "pending_payment"),
+      })
+      .returning({ id: students.id });
 
-      return { status: "success", refCode };
-    } catch (error) {
-      if (isUniqueViolation(error, "students_clerk_user_idx")) {
-        return {
-          status: "error",
-          message:
-            "This account already has an application on record. Contact the organising team if you need to change it.",
-          values,
-        };
-      }
-
-      if (isUniqueViolation(error, "students_email_idx")) {
-        return {
-          status: "error",
-          message: "An application already exists for this email address.",
-          errors: {
-            email:
-              "This email has already been registered. Contact the organising team if you need to change your application.",
-          },
-          values,
-        };
-      }
-
-      if (isUniqueViolation(error, "students_ref_code_idx")) {
-        continue; // collision — generate another code
-      }
-
-      console.error("[register] insert failed:", error);
+    if (!row) {
+      // Conflict occurred but setWhere excluded it — the existing row is
+      // already paid. One application per account; nothing to resubmit.
       return {
         status: "error",
         message:
-          "Something went wrong saving your application. Please try again in a moment.",
+          "This account already has an application on record. Contact the organising team if you need to change it.",
         values,
       };
     }
+
+    studentId = row.id;
+  } catch (error) {
+    if (isUniqueViolation(error, "students_email_idx")) {
+      return {
+        status: "error",
+        message: "An application already exists for this email address.",
+        errors: {
+          email:
+            "This email has already been registered. Contact the organising team if you need to change your application.",
+        },
+        values,
+      };
+    }
+
+    console.error("[register] save failed:", error);
+    return {
+      status: "error",
+      message: "Something went wrong saving your application. Please try again in a moment.",
+      values,
+    };
   }
 
-  console.error("[register] exhausted ref-code attempts");
-  return {
-    status: "error",
-    message:
-      "Something went wrong saving your application. Please try again in a moment.",
-    values,
-  };
+  // No fee configured (EDITION-style TBA) — registration completes exactly
+  // as it did before payment existed: issue a code immediately.
+  if (feeAmount === null) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const refCode = generateRefCode();
+      try {
+        await db
+          .update(students)
+          .set({ paymentStatus: "paid", refCode, paidAt: new Date() })
+          .where(eq(students.id, studentId));
+
+        sendConfirmationEmail(studentId, input.email, input.fullName, refCode);
+        return { status: "success", refCode };
+      } catch (error) {
+        if (isUniqueViolation(error, "students_ref_code_idx")) continue;
+        console.error("[register] free-flow finalize failed:", error);
+        return {
+          status: "error",
+          message: "Something went wrong saving your application. Please try again in a moment.",
+          values,
+        };
+      }
+    }
+    return {
+      status: "error",
+      message: "Something went wrong saving your application. Please try again in a moment.",
+      values,
+    };
+  }
+
+  // Fee is set — create a fresh Razorpay order for this attempt. A prior
+  // abandoned order (if any) is left exactly as it is; it stays independently
+  // resolvable by any webhook that eventually arrives for it. See Defect 1.
+  try {
+    const { razorpayOrderId } = await createRazorpayOrder({
+      amountPaise: feeAmount,
+      receipt: `aq-${studentId}-${Date.now()}`,
+    });
+
+    await db.insert(paymentOrders).values({
+      studentId,
+      razorpayOrderId,
+      amountPaise: feeAmount,
+      currency: "INR",
+      status: "created",
+    });
+
+    return {
+      status: "awaiting_payment",
+      studentId,
+      razorpayOrderId,
+      amountPaise: feeAmount,
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+      fullName: input.fullName,
+      email: input.email,
+      phone: input.phone,
+    };
+  } catch (error) {
+    console.error("[register] Razorpay order creation failed:", error);
+    return {
+      status: "error",
+      message:
+        "We could not start the payment for your application. Your details are saved — please try again.",
+      values,
+    };
+  }
 }

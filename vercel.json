@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/sweep-resumes",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/payment-reconciliation",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-pending-registrations",
+      "schedule": "0 5 * * *"
     }
   ]
 }
