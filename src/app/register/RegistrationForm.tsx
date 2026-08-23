@@ -134,7 +134,6 @@ export function RegistrationForm({
 
   const [phase, setPhase] = useState<Phase>("editing");
   const [reviewValues, setReviewValues] = useState<SubmittedValues | null>(null);
-  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [finalRefCode, setFinalRefCode] = useState<string | null>(null);
   const [checkoutReady, setCheckoutReady] = useState(false);
 
@@ -165,11 +164,20 @@ export function RegistrationForm({
       theme: { color: "#0d0d0d" },
       handler: () => setPhase("confirming"),
       modal: {
+        // A hard reload rather than a client-side state reset: Razorpay's
+        // Checkout.js can leave a dismissed popup's overlay in a state that
+        // silently blocks a fresh instance from reopening later in the same
+        // page session (see the .close() cleanup above, which helps but
+        // isn't a guarantee). A real reload clears every bit of that client
+        // state — the student's row is already saved server-side from this
+        // submit, so nothing is lost except having to retype the form.
         ondismiss: () => {
-          setPaymentNotice(
-            "Payment was not completed. Your details are saved — you can try again.",
-          );
-          setPhase("review");
+          // A real browser navigation on purpose, not router.push() — a soft
+          // SPA transition wouldn't reload the page at all here (same
+          // route), so it would leave Razorpay's script state exactly as
+          // stale as before. This needs an actual reload.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.href = "/register";
         },
       },
     });
@@ -277,7 +285,6 @@ export function RegistrationForm({
     if (!form) return;
     if (!form.reportValidity()) return;
     setReviewValues(readFormValues(form));
-    setPaymentNotice(null);
     setPhase("review");
   }
 
@@ -346,7 +353,6 @@ export function RegistrationForm({
             values={reviewValues}
             email={email}
             resumeName={file.phase === "done" ? file.name : undefined}
-            notice={paymentNotice}
           />
         ) : null}
 
@@ -713,12 +719,10 @@ function ReviewSummary({
   values,
   email,
   resumeName,
-  notice,
 }: {
   values: SubmittedValues | null;
   email: string;
   resumeName: string | undefined;
-  notice: string | null;
 }) {
   if (!values) return null;
 
@@ -746,12 +750,6 @@ function ReviewSummary({
       <h2 className="mt-3 text-h3 font-semibold text-navy">
         Check every field. This is the last point it&rsquo;s free to fix.
       </h2>
-
-      {notice ? (
-        <p role="alert" className="mt-4 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical">
-          {notice}
-        </p>
-      ) : null}
 
       <dl className="mt-6 border-t border-hairline">
         {rows.map((row) => (
