@@ -61,6 +61,39 @@ export function scoringPromptHash(
 }
 
 /**
+ * Student eligibility for an opening — the same rule the Apply button
+ * displays and the Server Action enforces, defined once so they can't drift.
+ *
+ * CGPA values are fixed-2 strings end to end (see validation.ts); Number()
+ * on those is exact at this precision.
+ */
+export type Eligibility =
+  | { eligible: true }
+  | { eligible: false; reason: string };
+
+export function checkEligibility(
+  opening: { minCgpa: string | null; eligibleBranches: readonly string[] },
+  student: { cgpa: string; branch: string },
+): Eligibility {
+  if (opening.minCgpa !== null && Number(student.cgpa) < Number(opening.minCgpa)) {
+    return {
+      eligible: false,
+      reason: `This opening requires a CGPA of ${opening.minCgpa} or above.`,
+    };
+  }
+  if (
+    opening.eligibleBranches.length > 0 &&
+    !opening.eligibleBranches.includes(student.branch)
+  ) {
+    return {
+      eligible: false,
+      reason: `This opening is limited to ${opening.eligibleBranches.join(", ")} students.`,
+    };
+  }
+  return { eligible: true };
+}
+
+/**
  * Average of the scores that exist, rendered for the dashboard.
  * "—" when nothing has been scored yet — never 0, which would read as a
  * terrible candidate pool rather than an unscored one.

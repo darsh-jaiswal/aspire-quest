@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   averageScoreLabel,
+  checkEligibility,
   scoreBand,
   scoringPromptHash,
 } from "./openings";
@@ -48,6 +49,47 @@ describe("scoringPromptHash", () => {
     expect(scoringPromptHash("desc", "prompt", "jd/other.pdf")).not.toBe(
       scoringPromptHash("desc", "prompt", "jd/key.pdf"),
     );
+  });
+});
+
+describe("checkEligibility", () => {
+  const student = { cgpa: "7.85", branch: "CS" };
+
+  it("passes when there are no constraints", () => {
+    expect(
+      checkEligibility({ minCgpa: null, eligibleBranches: [] }, student),
+    ).toEqual({ eligible: true });
+  });
+
+  it("enforces the CGPA floor, inclusive at the boundary", () => {
+    expect(
+      checkEligibility({ minCgpa: "7.85", eligibleBranches: [] }, student)
+        .eligible,
+    ).toBe(true);
+    expect(
+      checkEligibility({ minCgpa: "7.86", eligibleBranches: [] }, student)
+        .eligible,
+    ).toBe(false);
+  });
+
+  it("treats an empty branch list as all branches, a non-empty one as a whitelist", () => {
+    expect(
+      checkEligibility({ minCgpa: null, eligibleBranches: ["IT", "AIML"] }, student)
+        .eligible,
+    ).toBe(false);
+    expect(
+      checkEligibility({ minCgpa: null, eligibleBranches: ["CS"] }, student)
+        .eligible,
+    ).toBe(true);
+  });
+
+  it("reports the failed rule in the reason", () => {
+    const failed = checkEligibility(
+      { minCgpa: "9.00", eligibleBranches: [] },
+      student,
+    );
+    expect(failed.eligible).toBe(false);
+    if (!failed.eligible) expect(failed.reason).toContain("9.00");
   });
 });
 

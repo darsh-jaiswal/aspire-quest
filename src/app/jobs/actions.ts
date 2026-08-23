@@ -1,0 +1,87 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { db } from "@/db";
+import {
+  getPaidStudentByClerkId,
+  getPublicOpening,
+} from "@/db/queries/jobs";
+import { jobApplications } from "@/db/schema";
+import { requireStudent } from "@/lib/auth";
+import { checkEligibility } from "@/lib/openings";
+
+/**
+ * Applying — the one write a student can make on the jobs board.
+ *
+ * The disabled Apply button is courtesy; THIS is the enforcement point.
+ * Everything is re-checked here against the database: signed in, registered
+ * and paid, opening live, CGPA floor, branch list. The (opening, student)
+ * primary key makes a duplicate apply structurally impossible, so a retry or
+ * double-click converges on "you have applied" rather than an error.
+ *
+ * Applying is also the student's act of sharing: it is what grants the
+ * opening's company resume-read standing (see the resume download route).
+ */
+
+export type ApplyState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "applied" };
+
+const targetSchema = z.object({
+  openingId: z.coerce.number().int().positive(),
+});
+
+export async function applyToOpening(
+  _prev: ApplyState,
+  formData: FormData,
+): Promise<ApplyState> {
+  const actor = await requireStudent();
+
+  const target = targetSchema.safeParse({
+    openingId: formData.get("openingId"),
+  });
+  if (!target.success) {
+    return { status: "error", message: "Could not read that request." };
+  }
+
+  const student = await getPaidStudentByClerkId(actor.userId);
+  if (!student) {
+    return {
+      status: "error",
+      message:
+        "Complete your Aspire Quest registration first — your application uses the profile and resume from it.",
+    };
+  }
+
+  const opening = await getPublicOpening(target.data.openingId);
+  if (!opening || opening.status !== "live") {
+    return {
+      status: "error",
+      message: "This opening is not accepting applications.",
+    };
+  }
+
+  const eligibility = checkEligibility(opening, student);
+  if (!eligibility.eligible) {
+    return { status: "error", message: eligibility.reason };
+  }
+
+  try {
+    await db
+      .insert(jobApplications)
+      .values({ openingId: opening.id, studentId: student.id })
+      .onConflictDoNothing();
+  } catch (error) {
+    console.error("[jobs] apply failed:", error);
+    return {
+      status: "error",
+      message: "Something went wrong. Please try again in a moment.",
+    };
+  }
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${opening.id}`);
+  return { status: "applied" };
+}

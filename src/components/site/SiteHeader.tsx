@@ -27,6 +27,12 @@ export function SiteHeader() {
         </Link>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/jobs"
+            className="mr-1 hidden text-sm font-semibold text-slate underline-offset-4 transition-colors hover:text-navy hover:underline sm:block"
+          >
+            Openings
+          </Link>
           {/* Wrapped rather than hidden directly on the link: ButtonLink's
               own base class always carries an unconditional `inline-flex`,
               which fights `hidden` at equal CSS specificity — Tailwind
