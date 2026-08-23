@@ -423,48 +423,13 @@ export function RegistrationForm({
             </legend>
 
             <div key={`${formKey}-programme`} className="mt-6 grid gap-6 sm:grid-cols-3">
-              <Field
-                label="Programme"
-                htmlFor={fid("programme")}
-                error={errors.programme}
-                required
-              >
-                <Select
-                  id={fid("programme")}
-                  name="programme"
-                  required
-                  defaultValue={values?.programme ?? ""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  <option value="B.Tech">B.Tech</option>
-                  <option value="MBA.Tech">MBA.Tech</option>
-                </Select>
-              </Field>
-
-              <Field
-                label="Branch"
-                htmlFor={fid("branch")}
-                error={errors.branch}
-                required
-              >
-                <Select
-                  id={fid("branch")}
-                  name="branch"
-                  required
-                  defaultValue={values?.branch ?? ""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {BRANCHES.map((branch) => (
-                    <option key={branch.code} value={branch.code}>
-                      {branch.name} ({branch.programme})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <ProgrammeAndBranchFields
+                defaultProgramme={values?.programme}
+                defaultBranch={values?.branch}
+                programmeError={errors.programme}
+                branchError={errors.branch}
+                fid={fid}
+              />
 
               <Field label="Year" htmlFor={fid("year")} error={errors.year} required>
                 <Select
@@ -649,6 +614,85 @@ export function RegistrationForm({
           </div>
         ) : null}
       </form>
+    </>
+  );
+}
+
+/**
+ * Branch options are filtered to whatever the currently selected programme
+ * allows, so an invalid pair can't be picked in the first place — the
+ * combination used to only get caught by server validation after submit,
+ * which put the burden on the student to already know which branches belong
+ * to which programme.
+ */
+function ProgrammeAndBranchFields({
+  defaultProgramme,
+  defaultBranch,
+  programmeError,
+  branchError,
+  fid,
+}: {
+  defaultProgramme: string | undefined;
+  defaultBranch: string | undefined;
+  programmeError: string | undefined;
+  branchError: string | undefined;
+  fid: (name: string) => string;
+}) {
+  const [programme, setProgramme] = useState(defaultProgramme ?? "");
+  const eligibleBranches = BRANCHES.filter((b) => b.programme === programme);
+  const branchStillValid = eligibleBranches.some((b) => b.code === defaultBranch);
+
+  return (
+    <>
+      <Field
+        label="Programme"
+        htmlFor={fid("programme")}
+        error={programmeError}
+        required
+      >
+        <Select
+          id={fid("programme")}
+          name="programme"
+          required
+          value={programme}
+          onChange={(event) => setProgramme(event.target.value)}
+        >
+          <option value="" disabled>
+            Select
+          </option>
+          <option value="B.Tech">B.Tech</option>
+          <option value="MBA.Tech">MBA.Tech</option>
+        </Select>
+      </Field>
+
+      <Field
+        label="Branch"
+        htmlFor={fid("branch")}
+        error={branchError}
+        hint={programme ? undefined : "Select a programme first."}
+        required
+      >
+        <Select
+          id={fid("branch")}
+          name="branch"
+          required
+          disabled={!programme}
+          // Remounts (resetting to unselected) whenever the programme
+          // changes, since a branch chosen under the old programme is no
+          // longer a valid option.
+          key={programme}
+          defaultValue={branchStillValid ? defaultBranch : ""}
+        >
+          <option value="" disabled>
+            Select
+          </option>
+          {eligibleBranches.map((branch) => (
+            <option key={branch.code} value={branch.code}>
+              {branch.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
     </>
   );
 }
