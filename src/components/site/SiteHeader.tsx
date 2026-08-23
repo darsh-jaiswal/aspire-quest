@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SITE } from "@/lib/content";
+import { HeaderAccount } from "./HeaderAccount";
 
 /**
  * The header sits in normal document flow at the top of the page — it does
@@ -47,6 +48,7 @@ export function SiteHeader() {
           <ButtonLink href="/register" variant="gradient" className="px-4 py-2.5">
             Register
           </ButtonLink>
+          <HeaderAccount />
         </div>
       </Container>
     </header>

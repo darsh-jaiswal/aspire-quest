@@ -1,4 +1,5 @@
 import { ClerkProvider, SignOutButton, UserButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { NavTab } from "@/components/admin/NavTab";
@@ -35,6 +36,10 @@ export default async function PortalLayout({
   // Re-checked here even though the proxy already gated /portal(.*).
   await requireRecruiter();
 
+  // Always show who is signed in — the same courtesy every site owes its users.
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+
   return (
     <ClerkProvider>
       <ConsoleShell
@@ -44,6 +49,12 @@ export default async function PortalLayout({
         ))}
         user={
           <div className="flex items-center gap-4">
+            <span
+              className="hidden max-w-[20ch] truncate text-sm text-muted md:block"
+              title={email ?? undefined}
+            >
+              {email}
+            </span>
             <SignOutButton>
               <button className="text-sm text-muted transition-colors hover:text-navy">
                 Sign out

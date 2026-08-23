@@ -53,7 +53,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-IN" className={`${inter.variable} ${anton.variable} h-full`}>
+    // data-scroll-behavior tells Next to suspend the CSS smooth-scroll during
+    // route transitions — without it, the router's scroll-to-top becomes an
+    // interruptible animation and navigations (sign-out included) land
+    // mid-page or at the footer. Smooth scrolling stays for anchor links.
+    <html
+      lang="en-IN"
+      data-scroll-behavior="smooth"
+      className={`${inter.variable} ${anton.variable} h-full`}
+    >
       <body className="flex min-h-full flex-col bg-surface text-slate">
         {children}
       </body>
