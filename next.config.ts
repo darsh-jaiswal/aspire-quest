@@ -43,12 +43,15 @@ function buildCsp(): string {
   const fapiHost = clerkFapiHost();
   const clerkScript = fapiHost ? ` https://${fapiHost}` : "";
   const clerkConnect = fapiHost ? ` https://${fapiHost}` : "";
+  // React's dev overlay reconstructs callstacks with eval(); production React
+  // never calls it, so the directive exists only in development builds.
+  const devEval = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
 
   return [
     "default-src 'self'",
     // Razorpay Checkout is a script-injected overlay, not an npm bundle —
     // checkout.razorpay.com is where checkout.js itself loads from.
-    `script-src 'self' 'unsafe-inline'${clerkScript} https://challenges.cloudflare.com https://*.protect.clerk.com https://checkout.razorpay.com`,
+    `script-src 'self' 'unsafe-inline'${devEval}${clerkScript} https://challenges.cloudflare.com https://*.protect.clerk.com https://checkout.razorpay.com`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://img.clerk.com https://*.razorpay.com",
     "font-src 'self' data:",
