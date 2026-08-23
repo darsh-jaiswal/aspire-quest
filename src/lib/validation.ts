@@ -217,6 +217,94 @@ export const alumniReferralSchema = z.object({
 export type AlumniReferralInput = z.infer<typeof alumniReferralSchema>;
 
 /* -------------------------------------------------------------------------
+ * Job opening — recruiter-authored, validated in the portal Server Action
+ * ---------------------------------------------------------------------- */
+
+export const jobOpeningSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(4, "Give the opening a title.")
+    .max(200, "That title is too long."),
+  focusArea: z.enum(focusCodes, {
+    message: "Select the focus area this role sits in.",
+  }),
+  description: z
+    .string()
+    .trim()
+    .min(40, "Describe the role in at least a couple of sentences.")
+    .max(8000, "Keep the description under 8000 characters."),
+  /** Private to the hiring team and the AI scorer. Never shown to students. */
+  screeningPrompt: z
+    .string()
+    .trim()
+    .max(4000, "Keep the screening prompt under 4000 characters.")
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  /** Optional uploaded JD document — blob key from /api/openings/jd/upload. */
+  jdBlobKey: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  jdFilename: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  jdBytes: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .transform((value) => (value ? value : null)),
+  jdContentType: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  minCgpa: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null))
+    .refine(
+      (value) => value === null || /^\d{1,2}(\.\d{1,2})?$/.test(value),
+      { message: "Enter the minimum CGPA as a number, e.g. 7.0." },
+    )
+    .refine(
+      (value) => {
+        if (value === null) return true;
+        const parsed = Number(value);
+        return parsed >= REGISTRATION.minCgpa && parsed <= REGISTRATION.maxCgpa;
+      },
+      {
+        message: `CGPA must be between ${REGISTRATION.minCgpa} and ${REGISTRATION.maxCgpa}.`,
+      },
+    )
+    .transform((value) => (value === null ? null : Number(value).toFixed(2))),
+  /** Empty = all branches eligible. */
+  eligibleBranches: z
+    .array(z.enum(branchCodes))
+    .max(branchCodes.length)
+    .default([]),
+  skills: z
+    .array(z.string().trim().min(1).max(40))
+    .max(12, "List at most 12 skills.")
+    .default([]),
+});
+
+export type JobOpeningInput = z.infer<typeof jobOpeningSchema>;
+
+/* -------------------------------------------------------------------------
  * Resume upload constraints — enforced again server-side on the blob callback
  * ---------------------------------------------------------------------- */
 

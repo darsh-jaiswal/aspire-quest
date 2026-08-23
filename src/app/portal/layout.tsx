@@ -22,7 +22,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const SECTIONS = [{ href: "/portal", label: "Candidate sets", exact: true }];
+const SECTIONS = [
+  { href: "/portal/openings", label: "Job openings" },
+  { href: "/portal", label: "Candidate sets", exact: true },
+];
 
 export default async function PortalLayout({
   children,

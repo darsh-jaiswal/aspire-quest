@@ -1,5 +1,6 @@
 import { get } from "@vercel/blob";
 import { companiesWithAccessToStudent } from "@/db/queries/bundles";
+import { companiesStudentAppliedTo } from "@/db/queries/openings";
 import { getStudent } from "@/db/queries/students";
 import { canReadStudentResume } from "@/lib/access-policy";
 import { recordAudit } from "@/lib/audit";
@@ -42,7 +43,14 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Decided by the tested policy in @/lib/access-policy, not inline here.
-  const permitted = await companiesWithAccessToStudent(studentId);
+  // Standing comes from either sharing channel: a released bundle (organiser-
+  // curated) or the student's own application to one of the company's job
+  // openings — applying is itself the student's act of sharing.
+  const [bundleCompanies, applicationCompanies] = await Promise.all([
+    companiesWithAccessToStudent(studentId),
+    companiesStudentAppliedTo(studentId),
+  ]);
+  const permitted = [...new Set([...bundleCompanies, ...applicationCompanies])];
   if (!canReadStudentResume(actor, permitted)) {
     return new Response("Not found", { status: 404 });
   }

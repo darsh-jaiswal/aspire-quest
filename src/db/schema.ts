@@ -94,6 +94,17 @@ export const paymentOrderStatusEnum = pgEnum("payment_order_status", [
   "failed",
 ]);
 
+/**
+ * A job opening's lifecycle. `draft` is invisible to students; `live` is
+ * published and accepting applications; `closed` stops new applications but
+ * keeps the applicant list readable.
+ */
+export const openingStatusEnum = pgEnum("opening_status", [
+  "draft",
+  "live",
+  "closed",
+]);
+
 /* -------------------------------------------------------------------------
  * Students
  *
@@ -433,6 +444,118 @@ export const bundleStudents = pgTable(
 );
 
 /* -------------------------------------------------------------------------
+ * Job openings — recruiter-authored postings students apply to
+ *
+ * The marketplace flow, distinct from bundles: a recruiter publishes an
+ * opening, students apply from their login, and the applicant list is ranked
+ * by AI against the opening's private screening prompt. Publishing is
+ * self-serve by deliberate product decision (2026-08-23) — there is no
+ * organiser approval gate on openings, unlike bundle release.
+ * ---------------------------------------------------------------------- */
+
+export const jobOpenings = pgTable(
+  "job_openings",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    /** Clerk user id of the recruiter who created it. */
+    createdBy: varchar("created_by", { length: 64 }).notNull(),
+
+    title: varchar("title", { length: 200 }).notNull(),
+    focusArea: focusAreaEnum("focus_area").notNull(),
+    /** Student-visible. Role, responsibilities, stipend, location. */
+    description: text("description").notNull(),
+    /**
+     * The recruiter's private description of who they actually want. Fed to
+     * the AI scorer alongside the description; NEVER rendered to students.
+     */
+    screeningPrompt: text("screening_prompt"),
+
+    /**
+     * Optional uploaded JD document (PDF or .docx), private blob store —
+     * same handling discipline as resumes: opaque key, never a public URL.
+     * The scorer reads it as additional context; students get a download
+     * link once the student side exists.
+     */
+    jdBlobKey: text("jd_blob_key"),
+    jdFilename: varchar("jd_filename", { length: 200 }),
+    jdBytes: integer("jd_bytes"),
+    jdContentType: varchar("jd_content_type", { length: 80 }),
+
+    /** Eligibility floor. Null = no CGPA requirement. Same numeric discipline as students.cgpa. */
+    minCgpa: numeric("min_cgpa", { precision: 4, scale: 2 }),
+    /** Branch codes from content.ts. Empty = all branches eligible. */
+    eligibleBranches: text("eligible_branches")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    skills: text("skills").array().notNull().default(sql`ARRAY[]::text[]`),
+
+    status: openingStatusEnum("status").notNull().default("draft"),
+    /** Set when the opening first goes live. */
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("job_openings_company_idx").on(table.companyId),
+    index("job_openings_status_idx").on(table.status),
+  ],
+);
+
+/**
+ * One student's application to one opening, plus the AI score it earned.
+ *
+ * The score lives here rather than in its own table because it is a property
+ * of exactly this (opening, student) pair, and `promptHash` records which
+ * version of the opening's description + screening prompt produced it — a
+ * changed prompt makes the stored score stale, and re-scoring skips rows whose
+ * hash still matches.
+ */
+export const jobApplications = pgTable(
+  "job_applications",
+  {
+    openingId: integer("opening_id")
+      .notNull()
+      .references(() => jobOpenings.id, { onDelete: "cascade" }),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+
+    appliedAt: timestamp("applied_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+
+    /** Recruiter-set interest flag, same tri-state as bundle_students. */
+    interested: boolean("interested"),
+
+    /** 0–100. Null = not yet scored (or scoring skipped: no resume). */
+    score: integer("score"),
+    /** Short written justification. Shown to the recruiter, never the student. */
+    scoreRationale: text("score_rationale"),
+    scoreModel: varchar("score_model", { length: 64 }),
+    /** sha256 of the scoring inputs (description + screening prompt) at scoring time. */
+    promptHash: varchar("prompt_hash", { length: 64 }),
+    scoredAt: timestamp("scored_at", { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.openingId, table.studentId] }),
+    index("job_applications_student_idx").on(table.studentId),
+    index("job_applications_opening_score_idx").on(
+      table.openingId,
+      table.score,
+    ),
+  ],
+);
+
+/* -------------------------------------------------------------------------
  * Audit log — every read of student PII
  * ---------------------------------------------------------------------- */
 
@@ -503,7 +626,30 @@ export const companiesRelations = relations(companies, ({ many }) => ({
   outreach: many(outreachLog),
   bundles: many(bundles),
   recruiters: many(recruiterMemberships),
+  jobOpenings: many(jobOpenings),
 }));
+
+export const jobOpeningsRelations = relations(jobOpenings, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [jobOpenings.companyId],
+    references: [companies.id],
+  }),
+  applications: many(jobApplications),
+}));
+
+export const jobApplicationsRelations = relations(
+  jobApplications,
+  ({ one }) => ({
+    opening: one(jobOpenings, {
+      fields: [jobApplications.openingId],
+      references: [jobOpenings.id],
+    }),
+    student: one(students, {
+      fields: [jobApplications.studentId],
+      references: [students.id],
+    }),
+  }),
+);
 
 export const studentsRelations = relations(students, ({ many }) => ({
   bundleLinks: many(bundleStudents),
@@ -579,3 +725,6 @@ export type Bundle = typeof bundles.$inferSelect;
 export type ProblemStatement = typeof problemStatements.$inferSelect;
 export type AlumniReferral = typeof alumniReferrals.$inferSelect;
 export type AuditLogEntry = typeof auditLog.$inferSelect;
+export type JobOpening = typeof jobOpenings.$inferSelect;
+export type NewJobOpening = typeof jobOpenings.$inferInsert;
+export type JobApplication = typeof jobApplications.$inferSelect;
