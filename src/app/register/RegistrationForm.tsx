@@ -301,7 +301,13 @@ export function RegistrationForm({
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="afterInteractive"
-          onLoad={() => setCheckoutReady(true)}
+          // onLoad only ever fires the first time this script loads in the
+          // browser tab (Next.js's Script dedupes by src across mounts). A
+          // student who dismisses Checkout, leaves /register, and comes back
+          // remounts this component with checkoutReady reset to false, but
+          // the script is already cached — onLoad never refires, so Pay
+          // silently does nothing. onReady fires on that case too.
+          onReady={() => setCheckoutReady(true)}
         />
       ) : null}
 
