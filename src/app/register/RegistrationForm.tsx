@@ -54,7 +54,9 @@ type RazorpayOptions = {
 
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    Razorpay?: new (
+      options: RazorpayOptions,
+    ) => { open: () => void; close: () => void };
   }
 }
 
@@ -173,6 +175,16 @@ export function RegistrationForm({
     });
 
     checkout.open();
+
+    // Razorpay can leave the previous popup's overlay in a state that
+    // silently blocks a fresh .open() call if a new instance is created
+    // without ever closing the last one — we only ever called .open(),
+    // never .close(). Closing on cleanup covers both a resubmit after a
+    // dismissed payment (this effect reruns with a new order) and leaving
+    // the page while the popup is still open.
+    return () => {
+      checkout.close();
+    };
   }, [state, checkoutReady]);
 
   // Polls for the webhook's result. Display-only — see /api/payments/status.
