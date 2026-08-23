@@ -44,6 +44,19 @@ export const CONTACT = {
   instagram: "https://instagram.com/ambioratechfest",
 } as const;
 
+/**
+ * Contact shown specifically on the payment/legal pages (terms, privacy,
+ * refunds, contact) — the personal number and email of the site owner
+ * handling the Razorpay account, given directly in the build session,
+ * 2026-08-23. Deliberately separate from CONTACT above: the campus
+ * phone/email there stays the recruiter-facing contact used on the partners
+ * page and homepage, unaffected by this.
+ */
+export const PAYMENT_CONTACT = {
+  phone: "+91 86239 42283",
+  email: "darshjaiswal009.xi@gmail.com",
+} as const;
+
 /* -------------------------------------------------------------------------
  * Edition — date-driven from config, defaults to TBA
  * ---------------------------------------------------------------------- */

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/LegalPage";
-import { CONTACT, SITE } from "@/lib/content";
+import { PAYMENT_CONTACT, SITE } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Cancellation & refunds",
@@ -71,7 +71,7 @@ export default function RefundsPage() {
         <h2>Questions</h2>
         <p>
           For anything about a specific payment or refund, contact{" "}
-          <a href={`mailto:${CONTACT.campusEmail}`}>{CONTACT.campusEmail}</a>{" "}
+          <a href={`mailto:${PAYMENT_CONTACT.email}`}>{PAYMENT_CONTACT.email}</a>{" "}
           with your registration reference code.
         </p>
       </section>

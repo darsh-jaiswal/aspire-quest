@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/LegalPage";
-import { CONTACT, SITE } from "@/lib/content";
+import { CONTACT, PAYMENT_CONTACT, SITE } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -18,10 +18,14 @@ export default function ContactPage() {
         </p>
         <ul>
           <li>
-            Phone: <a href={`tel:${CONTACT.campusPhone.replace(/\s/g, "")}`}>{CONTACT.campusPhone}</a>
+            Phone:{" "}
+            <a href={`tel:${PAYMENT_CONTACT.phone.replace(/\s/g, "")}`}>
+              {PAYMENT_CONTACT.phone}
+            </a>
           </li>
           <li>
-            Email: <a href={`mailto:${CONTACT.campusEmail}`}>{CONTACT.campusEmail}</a>
+            Email:{" "}
+            <a href={`mailto:${PAYMENT_CONTACT.email}`}>{PAYMENT_CONTACT.email}</a>
           </li>
         </ul>
       </section>

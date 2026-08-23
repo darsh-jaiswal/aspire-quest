@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/LegalPage";
-import { CONTACT, SITE } from "@/lib/content";
+import { PAYMENT_CONTACT, SITE } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Privacy policy",
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
           automatically deleted after 24 hours. To request deletion of a
           completed application, or to ask what data we hold about you,
           contact us at{" "}
-          <a href={`mailto:${CONTACT.campusEmail}`}>{CONTACT.campusEmail}</a>.
+          <a href={`mailto:${PAYMENT_CONTACT.email}`}>{PAYMENT_CONTACT.email}</a>.
         </p>
       </section>
 
