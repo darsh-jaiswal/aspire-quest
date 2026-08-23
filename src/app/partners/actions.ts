@@ -8,8 +8,37 @@ import { fieldErrors, partnerSchema } from "@/lib/validation";
 
 export type PartnerState =
   | { status: "idle" }
-  | { status: "error"; message: string; errors?: Record<string, string> }
+  | {
+      status: "error";
+      message: string;
+      errors?: Record<string, string>;
+      /** What was submitted, echoed back so a failed submit never wipes the form (React 19 resets fields after every action). */
+      values?: Record<string, string>;
+    }
   | { status: "success"; company: string };
+
+/** The honeypot is deliberately excluded — it must never be echoed back. */
+const ECHO_FIELDS = [
+  "companyName",
+  "website",
+  "contactName",
+  "contactEmail",
+  "contactPhone",
+  "stipendMin",
+  "ppoTrack",
+  "focusArea",
+  "problemTitle",
+  "problemDescription",
+] as const;
+
+function echoValues(formData: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const field of ECHO_FIELDS) {
+    const value = formData.get(field);
+    if (typeof value === "string") values[field] = value;
+  }
+  return values;
+}
 
 export async function submitPartner(
   _prev: PartnerState,
@@ -25,6 +54,7 @@ export async function submitPartner(
         limit.reason === "rate_limited"
           ? "This form has been submitted several times from your connection. Please wait a few minutes."
           : "The form is temporarily unavailable. Please try again shortly.",
+      values: echoValues(formData),
     };
   }
 
@@ -47,6 +77,7 @@ export async function submitPartner(
       status: "error",
       message: "Some details need fixing before we can record your interest.",
       errors: fieldErrors(parsed.error),
+      values: echoValues(formData),
     };
   }
 
@@ -90,6 +121,7 @@ export async function submitPartner(
       status: "error",
       message:
         "Something went wrong recording your details. Please try again in a moment.",
+      values: echoValues(formData),
     };
   }
 }

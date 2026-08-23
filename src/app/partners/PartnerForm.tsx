@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   Checkbox,
@@ -21,6 +21,18 @@ export function PartnerForm() {
   const id = useId();
   const fid = (name: string) => `${id}-${name}`;
   const errors = state.status === "error" ? (state.errors ?? {}) : {};
+  // React 19 resets every field after a form action returns, so a failed
+  // submit re-fills the form from the echoed values instead of wiping it.
+  const values = state.status === "error" ? (state.values ?? {}) : {};
+
+  // The banner sits above the fold on a long form — bring it to the reader,
+  // or a failed submit looks like nothing happened at all.
+  const alertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (state.status === "error") {
+      alertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [state]);
 
   if (state.status === "success") {
     return (
@@ -47,6 +59,7 @@ export function PartnerForm() {
 
       {state.status === "error" ? (
         <div
+          ref={alertRef}
           role="alert"
           className="mb-8 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical"
         >
@@ -69,6 +82,7 @@ export function PartnerForm() {
             <Input
               id={fid("companyName")}
               name="companyName"
+              defaultValue={values.companyName}
               required
               autoComplete="organization"
               aria-invalid={errors.companyName ? true : undefined}
@@ -80,6 +94,7 @@ export function PartnerForm() {
             <Input
               id={fid("website")}
               name="website"
+              defaultValue={values.website}
               inputMode="url"
               placeholder="example.com"
               autoComplete="url"
@@ -103,6 +118,7 @@ export function PartnerForm() {
             <Input
               id={fid("contactName")}
               name="contactName"
+              defaultValue={values.contactName}
               required
               autoComplete="name"
               aria-invalid={errors.contactName ? true : undefined}
@@ -118,6 +134,7 @@ export function PartnerForm() {
             <Input
               id={fid("contactEmail")}
               name="contactEmail"
+              defaultValue={values.contactEmail}
               type="email"
               inputMode="email"
               required
@@ -134,6 +151,7 @@ export function PartnerForm() {
             <Input
               id={fid("contactPhone")}
               name="contactPhone"
+              defaultValue={values.contactPhone}
               type="tel"
               inputMode="tel"
               autoComplete="tel"
@@ -158,6 +176,7 @@ export function PartnerForm() {
             <Input
               id={fid("stipendMin")}
               name="stipendMin"
+              defaultValue={values.stipendMin}
               inputMode="numeric"
               placeholder="5000"
               className="tabular"
@@ -172,7 +191,12 @@ export function PartnerForm() {
             hint="Determines which candidate bundle you receive."
             required
           >
-            <Select id={fid("focusArea")} name="focusArea" required defaultValue="">
+            <Select
+              id={fid("focusArea")}
+              name="focusArea"
+              required
+              defaultValue={values.focusArea ?? ""}
+            >
               <option value="" disabled>
                 Select
               </option>
@@ -189,6 +213,7 @@ export function PartnerForm() {
           <Checkbox
             id={fid("ppoTrack")}
             name="ppoTrack"
+            defaultChecked={values.ppoTrack === "on"}
             label="This internship can lead to a Pre-Placement Offer."
           />
         </div>
@@ -213,6 +238,7 @@ export function PartnerForm() {
             <Input
               id={fid("problemTitle")}
               name="problemTitle"
+              defaultValue={values.problemTitle}
               required
               placeholder="Autonomous navigation for an indoor drone"
               aria-invalid={errors.problemTitle ? true : undefined}
@@ -229,6 +255,7 @@ export function PartnerForm() {
             <Textarea
               id={fid("problemDescription")}
               name="problemDescription"
+              defaultValue={values.problemDescription}
               rows={7}
               required
               aria-invalid={errors.problemDescription ? true : undefined}

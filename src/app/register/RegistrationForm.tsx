@@ -310,6 +310,12 @@ export function RegistrationForm({
 
         {state.status === "error" ? (
           <div
+            ref={(node) => {
+              // The submit button sits at the bottom of a long page; without
+              // this, a refusal renders above the fold and reads as "nothing
+              // happened".
+              node?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
             role="alert"
             className="mb-8 rounded border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-critical"
           >
