@@ -1,4 +1,5 @@
 import { Container } from "@/components/ui/Container";
+import { MouseQuadrantTracker } from "@/components/ui/MouseQuadrantTracker";
 import { EDITION, SITE } from "@/lib/content";
 
 /**
@@ -36,12 +37,12 @@ export function Masthead() {
         </div>
       </Container>
 
-      <div
+      <MouseQuadrantTracker
+        text="Ambiora"
+        hue={90}
         style={{ fontSize: "clamp(3rem, 15vw, 12.5rem)", lineHeight: 0.78 }}
         className="relative mt-6 flex select-none justify-center font-[family-name:var(--font-anton)] uppercase tracking-[-0.015em] text-paper sm:mt-9"
-      >
-        Ambiora
-      </div>
+      />
     </section>
   );
 }
