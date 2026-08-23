@@ -6,7 +6,6 @@ import { Pathways } from "@/components/home/Pathways";
 import { Process } from "@/components/home/Process";
 import { Proof } from "@/components/home/Proof";
 import { TalentPool } from "@/components/home/TalentPool";
-import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 
 /** Fully static — the public site is CDN-served and costs no compute. */
@@ -35,8 +34,6 @@ export default function HomePage() {
         <Pathways />
         <Faq />
       </main>
-
-      <SiteFooter />
     </>
   );
 }

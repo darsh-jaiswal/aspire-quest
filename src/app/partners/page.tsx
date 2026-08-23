@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Section";
@@ -83,8 +82,6 @@ export default function PartnersPage() {
           </div>
         </Container>
       </main>
-
-      <SiteFooter />
     </>
   );
 }
