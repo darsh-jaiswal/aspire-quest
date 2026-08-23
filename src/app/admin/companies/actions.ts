@@ -1,10 +1,16 @@
 "use server";
 
+import { clerkClient } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { alumniReferrals, companies, outreachLog } from "@/db/schema";
+import {
+  alumniReferrals,
+  companies,
+  outreachLog,
+  recruiterMemberships,
+} from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { parseCsvRecords, pick } from "@/lib/csv";
 
@@ -250,5 +256,142 @@ export async function importCompanies(
   } catch (error) {
     console.error("[admin/companies] import failed:", error);
     return { status: "error", message: "Could not save those companies." };
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Recruiter access — the "accept a recruiter" flow
+ *
+ * Turning a partner contact into a working portal login is two grants: the
+ * recruiter role on their Clerk account, and a membership row binding them to
+ * this company. Both happen here, keyed by email, so onboarding a company's
+ * recruiter is an organiser action instead of dashboard-and-SQL work.
+ *
+ * If no Clerk account exists for the email yet, one is created; when the
+ * person first clicks "Continue with Google" with that email, Clerk links the
+ * sign-in to it. No password ever exists either way.
+ * ---------------------------------------------------------------------- */
+
+const recruiterEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(160)
+  .pipe(z.email("Enter the recruiter's email address."));
+
+export async function grantRecruiterAccess(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const actor = await requireAdmin();
+
+  const id = companyId.safeParse(formData.get("companyId"));
+  const email = recruiterEmailSchema.safeParse(formData.get("email"));
+  if (!id.success || !email.success) {
+    return {
+      status: "error",
+      message: email.success
+        ? "Could not read that request."
+        : email.error.issues[0]!.message,
+    };
+  }
+
+  try {
+    const clerk = await clerkClient();
+
+    const existing = await clerk.users.getUserList({
+      emailAddress: [email.data],
+    });
+    let user = existing.data[0] ?? null;
+
+    // Never silently demote an organiser to a recruiter.
+    if (user && user.publicMetadata?.role === "admin") {
+      return {
+        status: "error",
+        message: "That email belongs to an organiser account.",
+      };
+    }
+
+    if (user) {
+      await clerk.users.updateUserMetadata(user.id, {
+        publicMetadata: { role: "recruiter" },
+      });
+    } else {
+      user = await clerk.users.createUser({
+        emailAddress: [email.data],
+        skipPasswordRequirement: true,
+        publicMetadata: { role: "recruiter" },
+      });
+    }
+
+    // Idempotent: granting twice is a no-op, not an error.
+    await db
+      .insert(recruiterMemberships)
+      .values({
+        userId: user.id,
+        companyId: id.data,
+        invitedBy: actor.userId,
+      })
+      .onConflictDoNothing();
+
+    revalidatePath(`/admin/companies/${id.data}`);
+    return {
+      status: "success",
+      message: `${email.data} can now sign in at /portal with Google or Microsoft using that address.`,
+    };
+  } catch (error) {
+    console.error("[admin/companies] grant recruiter failed:", error);
+    return {
+      status: "error",
+      message: "Could not grant access. Check the email and try again.",
+    };
+  }
+}
+
+export async function revokeRecruiterAccess(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+
+  const membershipId = z.coerce
+    .number()
+    .int()
+    .positive()
+    .safeParse(formData.get("membershipId"));
+  if (!membershipId.success) {
+    return { status: "error", message: "Could not read that request." };
+  }
+
+  try {
+    const [removed] = await db
+      .delete(recruiterMemberships)
+      .where(eq(recruiterMemberships.id, membershipId.data))
+      .returning({ userId: recruiterMemberships.userId, companyId: recruiterMemberships.companyId });
+
+    if (!removed) {
+      return { status: "error", message: "That access was already removed." };
+    }
+
+    // If this was their last company, take the role too — an account with the
+    // recruiter role but no membership is a confusing half-state.
+    const remaining = await db
+      .select({ id: recruiterMemberships.id })
+      .from(recruiterMemberships)
+      .where(eq(recruiterMemberships.userId, removed.userId))
+      .limit(1);
+
+    if (remaining.length === 0) {
+      const clerk = await clerkClient();
+      await clerk.users.updateUserMetadata(removed.userId, {
+        publicMetadata: { role: null },
+      });
+    }
+
+    revalidatePath(`/admin/companies/${removed.companyId}`);
+    return { status: "success", message: "Access removed." };
+  } catch (error) {
+    console.error("[admin/companies] revoke recruiter failed:", error);
+    return { status: "error", message: "Could not remove that access." };
   }
 }

@@ -1,3 +1,4 @@
+import { clerkClient } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading, Pill } from "@/components/admin/Shell";
@@ -6,11 +7,13 @@ import {
   getCompany,
   getOutreach,
   getProblemStatements,
+  listRecruiterMemberships,
 } from "@/db/queries/companies";
 import { requireAdmin } from "@/lib/auth";
 import { FOCUS_AREAS } from "@/lib/content";
 import { COMPANY_SOURCE_LABEL, COMPANY_STATUS_LABEL } from "@/lib/pipeline";
 import { OutreachForm } from "./OutreachForm";
+import { RecruiterAccessPanel, type RecruiterRow } from "./RecruiterAccessPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +33,37 @@ export default async function CompanyDetailPage({
   const company = await getCompany(companyId);
   if (!company) notFound();
 
-  const [problems, outreach, allBundles] = await Promise.all([
+  const [problems, outreach, allBundles, memberships] = await Promise.all([
     getProblemStatements(companyId),
     getOutreach(companyId),
     listBundles(),
+    listRecruiterMemberships(companyId),
   ]);
 
   const bundles = allBundles.filter((b) => b.companyId === companyId);
+
+  // Emails live in Clerk, not our database — resolve each membership's user.
+  // A lookup that fails (deleted account) still renders, labelled as such.
+  const clerk = await clerkClient();
+  const recruiters: RecruiterRow[] = await Promise.all(
+    memberships.map(async (membership) => {
+      let email = "account not found";
+      try {
+        const user = await clerk.users.getUser(membership.userId);
+        email =
+          user.primaryEmailAddress?.emailAddress ??
+          user.emailAddresses[0]?.emailAddress ??
+          "no email on account";
+      } catch {
+        // keep the fallback label
+      }
+      return {
+        membershipId: membership.id,
+        email,
+        addedAt: membership.createdAt.toLocaleDateString("en-IN"),
+      };
+    }),
+  );
 
   const details: [string, string | null][] = [
     ["Status", COMPANY_STATUS_LABEL[company.status]],
@@ -157,7 +184,11 @@ export default async function CompanyDetailPage({
         </div>
 
         <div className="lg:col-span-5">
-          <OutreachForm companyId={companyId} />
+          <RecruiterAccessPanel companyId={companyId} recruiters={recruiters} />
+
+          <div className="mt-10">
+            <OutreachForm companyId={companyId} />
+          </div>
 
           <h2 className="mt-10 text-eyebrow font-semibold uppercase text-muted">
             History

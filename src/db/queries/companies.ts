@@ -7,6 +7,7 @@ import {
   companies,
   outreachLog,
   problemStatements,
+  recruiterMemberships,
 } from "@/db/schema";
 
 // Status vocabulary and labels live in @/lib/pipeline so client components can
@@ -74,4 +75,21 @@ export async function countPendingReferrals(): Promise<number> {
     .from(alumniReferrals)
     .where(sql`${alumniReferrals.promotedCompanyId} is null`);
   return row?.value ?? 0;
+}
+
+/**
+ * Recruiter memberships for one company — the database half of "who can log
+ * in as this company's recruiter". The Clerk half (email, role) is resolved
+ * by the caller, because emails live in the identity provider, not here.
+ */
+export async function listRecruiterMemberships(companyId: number) {
+  return db
+    .select({
+      id: recruiterMemberships.id,
+      userId: recruiterMemberships.userId,
+      createdAt: recruiterMemberships.createdAt,
+    })
+    .from(recruiterMemberships)
+    .where(eq(recruiterMemberships.companyId, companyId))
+    .orderBy(desc(recruiterMemberships.createdAt));
 }
