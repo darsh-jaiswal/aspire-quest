@@ -21,7 +21,7 @@ export function HeaderAccount() {
   if (!CLERK_CONFIGURED) {
     return (
       <ButtonLink href="/register" variant="gradient" className="px-4 py-2.5">
-        Register
+        For students
       </ButtonLink>
     );
   }

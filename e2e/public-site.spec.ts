@@ -19,7 +19,7 @@ test.describe("home page", () => {
       page.getByRole("link", { name: /Aspire Quest — home/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Register", exact: true }),
+      page.getByRole("link", { name: "For students", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "For recruiters" }),
@@ -32,7 +32,7 @@ test.describe("home page", () => {
    * test raced it — the navigation was cancelled and the assertion read the
    * stale URL. Separate tests also name which link broke.
    */
-  test("the Register link reaches registration, via sign-in", async ({
+  test("the For students link reaches registration, via sign-in", async ({
     page,
   }) => {
     await page.goto("/");
@@ -42,7 +42,7 @@ test.describe("home page", () => {
     // next. Asserting the destination renders, not just its URL, is what
     // stops this passing on an error page.
     await page
-      .getByRole("link", { name: "Register", exact: true })
+      .getByRole("link", { name: "For students", exact: true })
       .click();
     await expect(page).toHaveURL(/\/sign-in/);
     await expect(
