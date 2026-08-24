@@ -88,10 +88,11 @@ Screenshot before judging any visual change — Playwright drives real Chromium,
 
 ## Open threads
 
-1. Sign in at `/admin` to create a Clerk account, then set `publicMetadata.role` to `admin`. Nothing in the console or portal is reachable until this happens.
-2. The NMIMS crest is filtered (`grayscale invert`) to sit on the light header, because the supplied PNG has a black ground baked in. A transparent or light-ground asset removes the filter and restores the mark's true tonality.
-3. Still blocked on the organiser: Ambiora '27 dates, full-resolution photos, the alumni CSV and the Placement Cell recruiter list, and whether this lives on an `nmims.edu` subdomain.
-4. Get organiser sign-off on the real registration fee (currently a provisional ₹100) and on whether it's acceptable for a **personal** Razorpay account to keep receiving student payments long-term, or whether this needs to move to an NMIMS-authorized account before broader rollout. Razorpay itself is live and verified (2026-08-23) — this is a policy/accountability question now, not a technical one.
+1. ~~Sign in at `/admin` to create a Clerk account~~ Resolved 2026-08-24 — test role accounts exist (see "Test logins").
+2. **Pending (Ritul asked to be reminded, 2026-08-24):** customize the Clerk session token — Dashboard → Configure → Sessions → Customize session token → `{"metadata": "{{user.public_metadata}}"}` → Save. Until then every signed-in page pays a ~200–400ms `currentUser()` round-trip; the code fast-path is already deployed and falls back safely.
+3. The NMIMS crest is filtered (`grayscale invert`) to sit on the light header, because the supplied PNG has a black ground baked in. A transparent or light-ground asset removes the filter and restores the mark's true tonality.
+4. Still blocked on the organiser: Ambiora '27 dates, full-resolution photos, the alumni CSV and the Placement Cell recruiter list, and whether this lives on an `nmims.edu` subdomain.
+5. Get organiser sign-off on the real registration fee (currently a provisional ₹100) and on whether it's acceptable for a **personal** Razorpay account to keep receiving student payments long-term, or whether this needs to move to an NMIMS-authorized account before broader rollout. Razorpay itself is live and verified (2026-08-23) — this is a policy/accountability question now, not a technical one.
 
 ## Bundles: removed (2026-08-24)
 
