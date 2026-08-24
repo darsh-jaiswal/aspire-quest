@@ -81,6 +81,22 @@ describe("selectOrphanedBlobs", () => {
     expect(result.sort()).toEqual(["another-orphan.pdf", "orphan-old.pdf"]);
   });
 
+  /**
+   * The store holds JD documents as well as resumes, and the sweep scans the
+   * whole store — a JD's key must protect it exactly like a resume's does.
+   * (The caller's referenced set unions job_openings.jd_blob_key for this.)
+   */
+  it("never deletes a referenced JD blob, however old", () => {
+    const result = selectOrphanedBlobs({
+      blobs: [blob("jd/backend-intern.pdf", 72), blob("jd/stale-orphan.pdf", 72)],
+      referencedKeys: new Set(["jd/backend-intern.pdf"]),
+      now: NOW,
+      graceMs: GRACE_MS,
+    });
+
+    expect(result).toEqual(["jd/stale-orphan.pdf"]);
+  });
+
   it("returns nothing for an empty store", () => {
     expect(
       selectOrphanedBlobs({

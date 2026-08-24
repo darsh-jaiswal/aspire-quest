@@ -19,7 +19,7 @@
 import { del, list } from "@vercel/blob";
 import { isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { students } from "@/db/schema";
+import { jobOpenings, students } from "@/db/schema";
 
 /** A day. A form session is minutes; this is deliberately far beyond it. */
 const GRACE_MS = 24 * 60 * 60 * 1000;
@@ -59,19 +59,34 @@ export type SweepResult =
   | { ran: true; scanned: number; deleted: number; failed: number; dryRun: boolean };
 
 /**
- * Every resume key currently referenced by a student row.
+ * Every blob key currently referenced by a database row.
+ *
+ * The store holds more than resumes: recruiters' JD documents live in it too
+ * (`job_openings.jd_blob_key`), and `list()` below scans the whole store — so
+ * every table that points at a blob MUST contribute to this set, or the sweep
+ * deletes live files. If you add a blob-referencing column anywhere, add it
+ * here in the same change.
  *
  * Read in full rather than checked per-blob: one query is cheaper than N, and
  * an all-or-nothing read means a partial failure surfaces as an error instead
- * of silently under-reporting references and deleting live resumes.
+ * of silently under-reporting references and deleting live files.
  */
-async function referencedResumeKeys(): Promise<Set<string>> {
-  const rows = await db
+async function referencedBlobKeys(): Promise<Set<string>> {
+  const resumeRows = await db
     .select({ key: students.resumeBlobKey })
     .from(students)
     .where(isNotNull(students.resumeBlobKey));
 
-  return new Set(rows.map((row) => row.key).filter((key): key is string => Boolean(key)));
+  const jdRows = await db
+    .select({ key: jobOpenings.jdBlobKey })
+    .from(jobOpenings)
+    .where(isNotNull(jobOpenings.jdBlobKey));
+
+  return new Set(
+    [...resumeRows, ...jdRows]
+      .map((row) => row.key)
+      .filter((key): key is string => Boolean(key)),
+  );
 }
 
 /**
@@ -88,16 +103,16 @@ export async function sweepOrphanedResumes({
     return { ran: false, reason: "not_configured" };
   }
 
-  const referenced = await referencedResumeKeys();
+  const referenced = await referencedBlobKeys();
 
-  // A store with resumes in it but zero references almost certainly means the
-  // reference read went wrong, not that every resume is genuinely orphaned.
-  // Deleting on that reading would destroy every live resume, so stop instead.
+  // A store with files in it but zero references almost certainly means the
+  // reference read went wrong, not that every file is genuinely orphaned.
+  // Deleting on that reading would destroy every live resume and JD, so stop.
   if (referenced.size === 0) {
     const probe = await list({ limit: 1, token });
     if (probe.blobs.length > 0) {
       console.error(
-        "[resume-sweep] Store is non-empty but no student row references a resume. " +
+        "[resume-sweep] Store is non-empty but no row references any blob. " +
           "Refusing to run — this looks like a failed read, not a store full of orphans.",
       );
       return { ran: false, reason: "no_referenced_keys" };
