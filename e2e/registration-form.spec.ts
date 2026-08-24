@@ -97,4 +97,55 @@ test.describe("registration form", () => {
   }) => {
     await expect(page.locator("h1")).toHaveCount(1);
   });
+
+  // Regression for a real report: an invalid CGPA ("8;23") used to sail
+  // through "Continue to review", and the server's rejection after
+  // "Confirm & pay" rendered in ink — the student read the whole exchange
+  // as the button doing nothing. Every problem must now be flagged inline,
+  // in place, before the review screen is reachable. Client-side only:
+  // nothing here touches the server action or the database.
+  test("invalid and missing fields are flagged inline at Continue to review", async ({
+    page,
+  }) => {
+    await page.getByLabel("Full name").fill("Gate Tester");
+    await page.getByLabel("Mobile number").fill("12345");
+    await page.getByLabel("CGPA").fill("8;23");
+    await page.getByLabel("Programme").selectOption("B.Tech");
+    await page.getByLabel("Branch").selectOption("CS");
+    await page.getByLabel("Year").selectOption("3rd year");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "resume.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 fake resume content for e2e"),
+    });
+    await expect(page.getByText(/resume\.pdf uploaded/i)).toBeVisible({
+      timeout: 15_000,
+    });
+    // Deliberately left broken: focus area unchosen, consent unchecked.
+
+    await page.getByRole("button", { name: /continue to review/i }).click();
+
+    await expect(
+      page.getByText("Enter CGPA as a number, e.g. 7.85."),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Enter a valid 10-digit Indian mobile number."),
+    ).toBeVisible();
+    await expect(page.getByText("Select one focus area.")).toBeVisible();
+    await expect(
+      page.getByText("You must agree before we can process your application."),
+    ).toBeVisible();
+    // The click happened at the bottom of a long form — it must be answered
+    // there too, not only up at the fields.
+    await expect(page.getByText(/some fields need fixing/i)).toBeVisible();
+    await expect(page.getByText(/review before you pay/i)).toHaveCount(0);
+
+    // Fixing the fields lets the same click through to review.
+    await page.getByLabel("Mobile number").fill("9876543210");
+    await page.getByLabel("CGPA").fill("8.23");
+    await page.getByRole("radio").first().check();
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: /continue to review/i }).click();
+    await expect(page.getByText(/review before you pay/i)).toBeVisible();
+  });
 });

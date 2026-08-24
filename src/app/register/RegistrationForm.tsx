@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/Field";
 import { BRANCHES, FOCUS_AREAS, REGISTRATION, REGISTRATION_FEE } from "@/lib/content";
 import { submitRegistration, type RegisterState, type SubmittedValues } from "./actions";
+import { validateForReview } from "./client-validation";
 import type { SavedDraft } from "./saved-draft";
 
 type UploadState =
@@ -151,8 +152,15 @@ export function RegistrationForm({
   const [reviewValues, setReviewValues] = useState<SubmittedValues | null>(null);
   const [finalRefCode, setFinalRefCode] = useState<string | null>(null);
   const [checkoutReady, setCheckoutReady] = useState(false);
+  /** Set by "Continue to review" when fields fail the client-side mirror of the server rules. */
+  const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
-  const errors = state.status === "error" ? (state.errors ?? {}) : {};
+  const hasClientErrors = Object.keys(clientErrors).length > 0;
+  const errors = hasClientErrors
+    ? clientErrors
+    : state.status === "error"
+      ? (state.errors ?? {})
+      : {};
   // What the fields default to: the error echo (what the student just typed)
   // wins over the restored draft, which wins over blank.
   const values = state.status === "error" ? state.values : savedDraft?.values;
@@ -301,8 +309,27 @@ export function RegistrationForm({
   function handleContinueToReview() {
     const form = formRef.current;
     if (!form) return;
-    if (!form.reportValidity()) return;
-    setReviewValues(readFormValues(form));
+
+    // Inline messages under each field, not the browser's one-at-a-time
+    // native bubble (which this replaces): a student sees every problem at
+    // once, in place. The server schema remains the real enforcement — this
+    // mirrors it so the FIRST feedback no longer arrives only after
+    // "Confirm & pay", where a rejection read as the button doing nothing.
+    const candidate = readFormValues(form);
+    const problems = validateForReview(candidate, file.phase === "done");
+    setClientErrors(problems);
+
+    const [firstProblem] = Object.keys(problems);
+    if (firstProblem) {
+      // Validator order matches page order, so this is the topmost one.
+      const anchor = firstProblem === "resumeBlobKey" ? "resume" : firstProblem;
+      document
+        .getElementById(fid(anchor))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    setReviewValues(candidate);
     setPhase("review");
   }
 
@@ -505,6 +532,7 @@ export function RegistrationForm({
             </p>
 
             <div
+              id={fid("focusArea")}
               role="radiogroup"
               aria-label="Focus area"
               className="mt-5 grid gap-px overflow-hidden rounded border border-hairline bg-hairline sm:grid-cols-2"
@@ -637,11 +665,19 @@ export function RegistrationForm({
             >
               Continue to review
             </Button>
-            <p className="text-sm text-muted">
-              {file.phase === "done"
-                ? "Check your details on the next screen before it's final."
-                : "Upload your resume to continue."}
-            </p>
+            {hasClientErrors ? (
+              // The Continue button sits at the bottom of a long form, so the
+              // click needs an answer HERE too, not only at the fields above.
+              <p role="alert" className="text-sm font-semibold text-critical">
+                Some fields need fixing — they&rsquo;re marked in red above.
+              </p>
+            ) : (
+              <p className="text-sm text-muted">
+                {file.phase === "done"
+                  ? "Check your details on the next screen before it's final."
+                  : "Upload your resume to continue."}
+              </p>
+            )}
           </div>
         </div>
 

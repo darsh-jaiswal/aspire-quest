@@ -54,12 +54,17 @@
   --color-amber-wash: #e5e5df;
 
   /* Semantic status.
-     Monochrome removes hue as a signal, so these must never be the ONLY
-     signal — every success and error state in this app already pairs its
-     colour with wording (see the form field components), which is the
-     stronger WCAG position regardless of palette. */
+     Positive stays ink: success states are unmissable by construction (a
+     full-panel reference code, an "uploaded." line the student just caused).
+     Critical is the one deliberate red in the palette. It started as ink on
+     the theory that wording is signal enough — then a real student submitted
+     an invalid CGPA, was bounced back to the form with the error banner and
+     field message rendered in ink, and read the whole thing as "nothing
+     happened". Errors interrupt; an interruption the same colour as the page
+     isn't one. Wording still accompanies every error (the WCAG position);
+     hue is now the second signal, not the missing one. */
   --color-positive: #0d0d0d;
-  --color-critical: #0d0d0d;
+  --color-critical: #b3261e;
 
   /* Focus ring colour, overridable per section so the ring stays visible on
      the ink-on-paper masthead as well as on paper-on-ink body sections. */
