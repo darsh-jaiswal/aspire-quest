@@ -31,6 +31,9 @@ type Props = {
   scoreRationale: string | null;
   /** True when the stored score predates the current prompt text. */
   scoreStale: boolean;
+  /** Set when the candidate withdrew — this application or their whole
+   *  registration. The row stays, greyed: a withdrawal is information. */
+  withdrawnAt: Date | null;
 };
 
 export function ApplicantRow({
@@ -49,6 +52,7 @@ export function ApplicantRow({
   score,
   scoreRationale,
   scoreStale,
+  withdrawnAt,
 }: Props) {
   const [, interestAction, interestPending] = useActionState(
     setApplicantInterest,
@@ -58,7 +62,9 @@ export function ApplicantRow({
   const band = score !== null ? scoreBand(score) : null;
 
   return (
-    <li className="flex gap-5 border-b border-hairline py-5">
+    <li
+      className={`flex gap-5 border-b border-hairline py-5${withdrawnAt ? " opacity-55" : ""}`}
+    >
       <p
         aria-label="Rank"
         data-figure
@@ -75,6 +81,7 @@ export function ApplicantRow({
               {refCode}
             </span>
           ) : null}
+          {withdrawnAt ? <Pill tone="muted">Withdrawn</Pill> : null}
           {interested === true ? <Pill tone="positive">Interested</Pill> : null}
           {interested === false ? <Pill tone="muted">Passed</Pill> : null}
         </div>

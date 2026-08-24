@@ -35,12 +35,29 @@ const SEEDED = {
   refCode: "AQ-E2EPAID",
 };
 
+const SEEDED_COMPANY = "E2E Withdrawal Test Co";
+
 test.describe("student dashboard", () => {
   let clerkUserId: string;
+  let openingId: number;
 
   test.beforeAll(async () => {
     clerkUserId = await clerkUserIdFor(TEST_PAID_STUDENT_EMAIL);
     const sql = sqlClient();
+    // A live opening owned by a throwaway company, for the withdrawal cycle.
+    // Deleting the company cascades the opening and any application rows.
+    await sql`DELETE FROM companies WHERE name = ${SEEDED_COMPANY}`;
+    const [company] = await sql`
+      INSERT INTO companies (name, status) VALUES (${SEEDED_COMPANY}, 'onboarded')
+      RETURNING id
+    `;
+    const [opening] = await sql`
+      INSERT INTO job_openings (company_id, created_by, title, focus_area, description, status, published_at)
+      VALUES (${company.id}, 'e2e-seed', 'E2E Withdrawal Opening', 'core_dev',
+              'Seeded by the dashboard e2e suite.', 'live', now())
+      RETURNING id
+    `;
+    openingId = opening.id;
     // Idempotent: a crashed run leaves a PAID row, which no sweep cron
     // touches — this delete is the only cleanup path, so it runs first.
     await sql`
@@ -72,9 +89,9 @@ test.describe("student dashboard", () => {
   });
 
   test.afterAll(async () => {
-    await sqlClient()`
-      DELETE FROM students WHERE clerk_user_id = ${clerkUserId}
-    `;
+    const sql = sqlClient();
+    await sql`DELETE FROM companies WHERE name = ${SEEDED_COMPANY}`;
+    await sql`DELETE FROM students WHERE clerk_user_id = ${clerkUserId}`;
   });
 
   test("never renders application content to a signed-out visitor", async ({
@@ -172,6 +189,98 @@ test.describe("student dashboard", () => {
     await originalRow.getByRole("button", { name: /confirm delete/i }).click();
     await expect(library.getByText("1/3")).toBeVisible();
     await expect(library.getByText(SEEDED.resumeFilename)).toHaveCount(0);
+  });
+
+  test("withdraw and re-apply with a different CV resets the AI score", async ({
+    page,
+  }) => {
+    const sql = sqlClient();
+
+    // Apply (library state from the previous test: second-cv.pdf, primary).
+    await signInAsStudent(page, TEST_PAID_STUDENT_EMAIL);
+    await page.goto(`/jobs/${openingId}`);
+    await page.getByRole("button", { name: /apply with my registration/i }).click();
+    // revalidatePath can re-render the server's "Applied on" panel over the
+    // client success message — either proves the apply landed.
+    await expect(
+      page.getByText(/application submitted|applied on/i).first(),
+    ).toBeVisible();
+
+    // Pretend the recruiter already scored it.
+    await sql`
+      UPDATE job_applications SET score = 77, score_rationale = 'seeded',
+        score_model = 'seeded', prompt_hash = 'seeded', scored_at = now()
+      WHERE opening_id = ${openingId}
+    `;
+
+    // Withdraw — two-step confirm; the recruiter-visible row survives.
+    await page.goto(`/jobs/${openingId}`);
+    await page.getByRole("button", { name: /withdraw application/i }).click();
+    await page.getByRole("button", { name: /confirm withdrawal/i }).click();
+    await expect(
+      page.getByText(/application withdrawn|you withdrew from this opening/i).first(),
+    ).toBeVisible();
+
+    // A second CV to re-apply with.
+    await page.goto("/dashboard");
+    const library = page.locator("section", { hasText: "Your resumes" });
+    await library.getByLabel(/upload another resume/i).setInputFiles({
+      name: "reapply-cv.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 e2e reapply cv"),
+    });
+    await library.getByRole("button", { name: /add to library/i }).click();
+    await expect(library.getByText("2/3")).toBeVisible();
+
+    // Re-apply picking the non-primary newcomer.
+    await page.goto(`/jobs/${openingId}`);
+    await page
+      .locator("label", { hasText: "reapply-cv.pdf" })
+      .getByRole("radio")
+      .check();
+    await page.getByRole("button", { name: /^re-apply$/i }).click();
+    await expect(
+      page.getByText(/application revived|applied on/i).first(),
+    ).toBeVisible();
+
+    // The CV changed, so the stored score must be gone and the row live.
+    const [application] = await sql`
+      SELECT ja.score, ja.withdrawn_at, r.filename
+      FROM job_applications ja JOIN resumes r ON r.id = ja.resume_id
+      WHERE ja.opening_id = ${openingId}
+    `;
+    expect(application.score).toBeNull();
+    expect(application.withdrawn_at).toBeNull();
+    expect(application.filename).toBe("reapply-cv.pdf");
+  });
+
+  test("withdrawing the registration closes everything", async ({ page }) => {
+    await signInAsStudent(page, TEST_PAID_STUDENT_EMAIL);
+    await page.goto("/dashboard");
+
+    await page
+      .getByRole("button", { name: /withdraw your registration/i })
+      .click();
+    await page.getByLabel(/type withdraw to confirm/i).fill("WITHDRAW");
+    await page
+      .getByRole("button", { name: /withdraw registration/i })
+      .click();
+    await expect(
+      page
+        .getByText(/your registration is withdrawn|you withdrew your registration/i)
+        .first(),
+    ).toBeVisible();
+
+    // The dashboard now renders the withdrawn state, the opening refuses
+    // new applications, and the jobs list shows the application withdrawn.
+    await page.goto("/dashboard");
+    await expect(page.getByText(/registration withdrawn/i).first()).toBeVisible();
+
+    await page.goto(`/jobs/${openingId}`);
+    await expect(page.getByText(/you withdrew from this opening/i)).toBeVisible();
+
+    await page.goto("/jobs");
+    await expect(page.getByText("Withdrawn", { exact: true })).toBeVisible();
   });
 
   test("no horizontal page scroll at small phone (320px)", async ({ page }) => {

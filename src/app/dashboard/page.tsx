@@ -19,7 +19,9 @@ import {
 import { requireStudent } from "@/lib/auth";
 import { FOCUS_AREAS } from "@/lib/content";
 import { studentVisibleStatus } from "@/lib/student-status-display";
+import { applicationWithdrawnAt } from "@/lib/withdrawal";
 import { ResumeLibrary } from "./resumes/ResumeLibrary";
+import { WithdrawRegistration } from "./WithdrawRegistration";
 
 /**
  * The student's home: the durable version of the one-time success screen.
@@ -89,6 +91,8 @@ export default async function DashboardPage() {
                 body="Your details are saved, but a registration only counts once payment confirms. Pick up where you left off — the form restores everything you entered, including your resume."
                 cta="Finish your registration"
               />
+            ) : student.withdrawnAt ? (
+              <WithdrawnDashboard student={student} />
             ) : (
               <PaidDashboard
                 student={student}
@@ -129,6 +133,31 @@ function EmptyState({
           {cta}
         </ButtonLink>
       </div>
+    </div>
+  );
+}
+
+function WithdrawnDashboard({ student }: { student: StudentAccountRow }) {
+  return (
+    <div className="rounded border border-hairline bg-raised p-8 md:p-10">
+      <p className="text-eyebrow font-semibold uppercase text-muted">
+        Registration withdrawn
+      </p>
+      <p data-figure className="mt-4 inline-block rounded border border-hairline-strong bg-surface px-5 py-3 text-h3 font-semibold tracking-tight text-muted">
+        {student.refCode}
+      </p>
+      <p className="mt-5 max-w-[52ch] text-slate">
+        You withdrew your registration
+        {student.withdrawnAt
+          ? ` on ${DATE_FORMAT.format(student.withdrawnAt)}`
+          : ""}
+        . You are out of the screening pipeline, your opening applications
+        show as withdrawn, and per the refund policy the fee is not returned.
+      </p>
+      <p className="mt-4 max-w-[52ch] text-sm text-muted">
+        Changed your mind? Email the organising team quoting the reference
+        code above — reinstatement is a manual step on their side.
+      </p>
     </div>
   );
 }
@@ -280,9 +309,11 @@ function PaidDashboard({
                     </span>
                   </p>
                   <p className="text-sm text-muted">
-                    {application.openingStatus === "closed"
-                      ? "Closed"
-                      : `Applied ${DATE_FORMAT.format(application.appliedAt)}`}
+                    {applicationWithdrawnAt(application, student)
+                      ? "Withdrawn"
+                      : application.openingStatus === "closed"
+                        ? "Closed"
+                        : `Applied ${DATE_FORMAT.format(application.appliedAt)}`}
                   </p>
                 </li>
               ))}
@@ -298,6 +329,8 @@ function PaidDashboard({
           </>
         )}
       </section>
+
+      <WithdrawRegistration />
     </>
   );
 }

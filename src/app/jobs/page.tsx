@@ -12,6 +12,7 @@ import {
   type StudentApplication,
 } from "@/db/queries/jobs";
 import { FOCUS_AREAS } from "@/lib/content";
+import { applicationWithdrawnAt } from "@/lib/withdrawal";
 
 /**
  * The jobs board. Browsing is public — the site-wide rule that only acting
@@ -44,11 +45,13 @@ export default async function JobsPage() {
   const openings = await listLiveOpenings();
 
   let applications: StudentApplication[] = [];
+  let registrationWithdrawnAt: Date | null = null;
   if (CLERK_CONFIGURED) {
     const { userId } = await auth();
     if (userId) {
       const student = await getPaidStudentByClerkId(userId);
       if (student) {
+        registrationWithdrawnAt = student.withdrawnAt;
         applications = await listApplicationsForStudent(student.id);
       }
     }
@@ -96,9 +99,13 @@ export default async function JobsPage() {
                       </span>
                     </p>
                     <p className="text-sm text-muted">
-                      {application.openingStatus === "closed"
-                        ? "Closed"
-                        : `Applied ${DATE_FORMAT.format(application.appliedAt)}`}
+                      {applicationWithdrawnAt(application, {
+                        withdrawnAt: registrationWithdrawnAt,
+                      })
+                        ? "Withdrawn"
+                        : application.openingStatus === "closed"
+                          ? "Closed"
+                          : `Applied ${DATE_FORMAT.format(application.appliedAt)}`}
                     </p>
                   </li>
                 ))}

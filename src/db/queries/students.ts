@@ -8,6 +8,7 @@ import {
   gte,
   ilike,
   inArray,
+  isNull,
   or,
   sql,
   type SQL,
@@ -53,7 +54,11 @@ const SORTS = {
 } as const;
 
 function buildWhere(filters: ScreeningFilters): SQL | undefined {
-  const clauses: SQL[] = [];
+  // A withdrawn registration is out of the pipeline everywhere this filter
+  // reaches: the screening list, the CSV export, dashboard counts, and (via
+  // the list-driven bundle builder) new bundles. Reinstating a student is a
+  // manual organiser action, documented in CLAUDE.md.
+  const clauses: SQL[] = [isNull(students.withdrawnAt)];
 
   const paymentFilter = filters.paymentFilter ?? "paid";
   if (paymentFilter === "paid") {
@@ -227,6 +232,7 @@ const ACCOUNT_COLUMNS = {
   status: students.status,
   paymentStatus: students.paymentStatus,
   paidAt: students.paidAt,
+  withdrawnAt: students.withdrawnAt,
   createdAt: students.createdAt,
 } as const;
 

@@ -125,6 +125,10 @@ export type ApplicantRow = {
   skills: string[];
   hasResume: boolean;
   appliedAt: Date;
+  /** Derive the effective state via applicationWithdrawnAt() — either
+   *  timestamp withdraws the application. */
+  withdrawnAt: Date | null;
+  studentWithdrawnAt: Date | null;
   interested: boolean | null;
   score: number | null;
   scoreRationale: string | null;
@@ -155,6 +159,8 @@ export async function listApplicantsForOpening(
       // what this recruiter can actually open is what was applied with.
       hasResume: sql<boolean>`${jobApplications.resumeId} is not null`,
       appliedAt: jobApplications.appliedAt,
+      withdrawnAt: jobApplications.withdrawnAt,
+      studentWithdrawnAt: students.withdrawnAt,
       interested: jobApplications.interested,
       score: jobApplications.score,
       scoreRationale: jobApplications.scoreRationale,

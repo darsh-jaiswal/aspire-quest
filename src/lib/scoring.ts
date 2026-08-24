@@ -11,6 +11,7 @@ import type { OpeningDetail } from "@/db/queries/openings";
 import { listApplicantsForOpening } from "@/db/queries/openings";
 import { getApplicationResume } from "@/db/queries/resumes";
 import { scoringPromptHash } from "./openings";
+import { applicationWithdrawnAt } from "./withdrawal";
 
 /**
  * AI resume scoring for job openings.
@@ -56,6 +57,7 @@ export type ScoringRunResult = {
   scored: number;
   skippedFresh: number;
   skippedNoResume: number;
+  skippedWithdrawn: number;
   failed: number;
 };
 
@@ -92,10 +94,18 @@ export async function scoreOpeningApplicants(
     scored: 0,
     skippedFresh: 0,
     skippedNoResume: 0,
+    skippedWithdrawn: 0,
     failed: 0,
   };
 
   const queue = applicants.filter((a) => {
+    // A withdrawn application (its own withdrawal or the whole
+    // registration's) is not scored — the candidate pulled out. Any score
+    // it already earned stays on the row for the recruiter's record.
+    if (applicationWithdrawnAt(a, { withdrawnAt: a.studentWithdrawnAt })) {
+      result.skippedWithdrawn += 1;
+      return false;
+    }
     if (a.score !== null && a.promptHash === currentHash) {
       result.skippedFresh += 1;
       return false;

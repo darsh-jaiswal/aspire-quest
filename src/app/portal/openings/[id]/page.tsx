@@ -9,6 +9,7 @@ import { recordBulkAudit } from "@/lib/audit";
 import { requireRecruiter } from "@/lib/auth";
 import { FOCUS_AREAS } from "@/lib/content";
 import { scoringPromptHash } from "@/lib/openings";
+import { applicationWithdrawnAt } from "@/lib/withdrawal";
 import { setOpeningStatus } from "../actions";
 import { ApplicantRow } from "./ApplicantRow";
 import { RescoreBar } from "./RescoreBar";
@@ -191,6 +192,9 @@ export default async function OpeningApplicantsPage({
                   applicant.score !== null &&
                   applicant.promptHash !== currentHash
                 }
+                withdrawnAt={applicationWithdrawnAt(applicant, {
+                  withdrawnAt: applicant.studentWithdrawnAt,
+                })}
               />
             ))}
           </ul>

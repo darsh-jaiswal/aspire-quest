@@ -8,14 +8,16 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Section";
 import {
+  getApplication,
   getPaidStudentByClerkId,
   getPublicOpening,
-  hasApplied,
 } from "@/db/queries/jobs";
 import { listActiveResumes } from "@/db/queries/resumes";
 import { FOCUS_AREAS } from "@/lib/content";
 import { checkEligibility } from "@/lib/openings";
+import { applicationWithdrawnAt, canReapply } from "@/lib/withdrawal";
 import { ApplyForm, type ApplyResumeOption } from "./ApplyForm";
+import { AppliedPanel, ReapplyPanel } from "./WithdrawControls";
 
 /**
  * One opening, publicly readable. The apply area tells the viewer's truth:
@@ -54,7 +56,9 @@ export async function generateMetadata({
 type Viewer =
   | { kind: "anonymous" }
   | { kind: "unregistered" }
+  | { kind: "registration_withdrawn" }
   | { kind: "applied"; appliedAt: Date }
+  | { kind: "withdrawn"; canReapply: boolean; resumes: ApplyResumeOption[] }
   | { kind: "ineligible"; reason: string }
   | { kind: "eligible"; resumes: ApplyResumeOption[] };
 
@@ -78,9 +82,29 @@ export default async function OpeningPage({
       if (!student) {
         viewer = { kind: "unregistered" };
       } else {
-        const appliedAt = await hasApplied(opening.id, student.id);
-        if (appliedAt) {
-          viewer = { kind: "applied", appliedAt };
+        const application = await getApplication(opening.id, student.id);
+        const withdrawnAt = application
+          ? applicationWithdrawnAt(application, student)
+          : null;
+
+        if (application && withdrawnAt) {
+          const reapplyAllowed = canReapply(opening.status, application, student);
+          const resumes = reapplyAllowed
+            ? await listActiveResumes(student.id)
+            : [];
+          viewer = {
+            kind: "withdrawn",
+            canReapply: reapplyAllowed,
+            resumes: resumes.map((resume) => ({
+              id: resume.id,
+              filename: resume.filename,
+              isPrimary: resume.isPrimary,
+            })),
+          };
+        } else if (application) {
+          viewer = { kind: "applied", appliedAt: application.appliedAt };
+        } else if (student.withdrawnAt) {
+          viewer = { kind: "registration_withdrawn" };
         } else {
           const eligibility = checkEligibility(opening, student);
           if (!eligibility.eligible) {
@@ -211,15 +235,27 @@ export default async function OpeningPage({
                       registration comes first.
                     </p>
                   </>
-                ) : viewer.kind === "applied" ? (
-                  <div className="rounded border border-positive/30 bg-positive/5 px-4 py-3.5">
-                    <p className="text-sm font-semibold text-positive">
-                      Applied on {DATE_FORMAT.format(viewer.appliedAt)}
+                ) : viewer.kind === "registration_withdrawn" ? (
+                  <div className="rounded border border-hairline bg-raised px-4 py-3.5">
+                    <p className="text-sm font-semibold text-navy">
+                      Registration withdrawn
                     </p>
                     <p className="mt-1 text-sm text-slate">
-                      Shortlist news comes from the Aspire Quest team.
+                      New applications are closed to a withdrawn registration.
+                      Contact the organising team to reinstate it.
                     </p>
                   </div>
+                ) : viewer.kind === "applied" ? (
+                  <AppliedPanel
+                    openingId={opening.id}
+                    appliedOn={DATE_FORMAT.format(viewer.appliedAt)}
+                  />
+                ) : viewer.kind === "withdrawn" ? (
+                  <ReapplyPanel
+                    openingId={opening.id}
+                    canReapply={viewer.canReapply}
+                    resumes={viewer.resumes}
+                  />
                 ) : viewer.kind === "ineligible" ? (
                   <div className="rounded border border-hairline bg-raised px-4 py-3.5">
                     <p className="text-sm font-semibold text-navy">

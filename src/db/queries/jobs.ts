@@ -83,9 +83,21 @@ export async function getPublicOpening(
  */
 export async function getPaidStudentByClerkId(
   clerkUserId: string,
-): Promise<{ id: number; cgpa: string; branch: string } | null> {
+): Promise<{
+  id: number;
+  cgpa: string;
+  branch: string;
+  withdrawnAt: Date | null;
+} | null> {
   const [row] = await db
-    .select({ id: students.id, cgpa: students.cgpa, branch: students.branch })
+    .select({
+      id: students.id,
+      cgpa: students.cgpa,
+      branch: students.branch,
+      // Callers decide what withdrawal means for them: the apply action
+      // refuses it, the jobs list still shows the (withdrawn) history.
+      withdrawnAt: students.withdrawnAt,
+    })
     .from(students)
     .where(
       and(
@@ -104,6 +116,9 @@ export type StudentApplication = {
   companyName: string;
   openingStatus: "draft" | "live" | "closed";
   appliedAt: Date;
+  /** This application's OWN withdrawal — derive the effective state via
+   *  applicationWithdrawnAt() with the student's registration-level one. */
+  withdrawnAt: Date | null;
 };
 
 /**
@@ -121,6 +136,7 @@ export async function listApplicationsForStudent(
       companyName: companies.name,
       openingStatus: jobOpenings.status,
       appliedAt: jobApplications.appliedAt,
+      withdrawnAt: jobApplications.withdrawnAt,
     })
     .from(jobApplications)
     .innerJoin(jobOpenings, eq(jobApplications.openingId, jobOpenings.id))
@@ -129,13 +145,21 @@ export async function listApplicationsForStudent(
     .orderBy(desc(jobApplications.appliedAt));
 }
 
-/** Whether this student already applied to this opening. */
-export async function hasApplied(
+/** The student's application to this opening, if any — withdrawal-aware. */
+export async function getApplication(
   openingId: number,
   studentId: number,
-): Promise<Date | null> {
+): Promise<{
+  appliedAt: Date;
+  withdrawnAt: Date | null;
+  resumeId: number | null;
+} | null> {
   const [row] = await db
-    .select({ appliedAt: jobApplications.appliedAt })
+    .select({
+      appliedAt: jobApplications.appliedAt,
+      withdrawnAt: jobApplications.withdrawnAt,
+      resumeId: jobApplications.resumeId,
+    })
     .from(jobApplications)
     .where(
       and(
@@ -145,7 +169,7 @@ export async function hasApplied(
     )
     .limit(1);
 
-  return row?.appliedAt ?? null;
+  return row ?? null;
 }
 
 /** JD file metadata for the download route's own authorization decision. */

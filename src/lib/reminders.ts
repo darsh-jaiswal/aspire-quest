@@ -12,7 +12,7 @@
  * every skipped reminder back-to-back.
  */
 
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { students } from "@/db/schema";
 import { EDITION } from "@/lib/content";
@@ -84,6 +84,8 @@ export async function runDueReminders(now = new Date()): Promise<ReminderRunResu
       and(
         eq(students.paymentStatus, "paid"),
         lte(students.remindersSent, dueIndex),
+        // A withdrawn registration gets no event mail.
+        isNull(students.withdrawnAt),
       ),
     )
     .orderBy(asc(students.id));

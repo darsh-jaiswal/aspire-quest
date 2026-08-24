@@ -172,6 +172,17 @@ export const students = pgTable(
     /** Explicit, timestamped consent. Required before any bundle sharing. */
     consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
 
+    /**
+     * A withdrawn registration: hidden from screening, exports, bundles,
+     * reminders and new applications, but the row (and its payment record)
+     * is kept — the fee is non-refundable by policy and the data-retention
+     * promise in /privacy still applies. Reversal is a manual organiser
+     * action. Application rows derive withdrawal from EITHER their own
+     * withdrawnAt or this one (src/lib/withdrawal.ts), so the two-statement
+     * withdrawal write needs no transaction.
+     */
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+
     /** Set once the registration-confirmation email has been sent. */
     confirmationEmailSentAt: timestamp("confirmation_email_sent_at", {
       withTimezone: true,
@@ -590,6 +601,15 @@ export const jobApplications = pgTable(
      * predate the resumes table; the backfill script sets it.
      */
     resumeId: integer("resume_id").references(() => resumes.id),
+
+    /**
+     * Student-initiated withdrawal of THIS application. The row stays —
+     * the recruiter sees a withdrawn candidate, not a vanished one — and
+     * re-applying (only while the opening is live) clears it. A withdrawn
+     * REGISTRATION also withdraws every application derivedly; read
+     * withdrawal through src/lib/withdrawal.ts, never this column alone.
+     */
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
 
     /** Recruiter-set interest flag, same tri-state as bundle_students. */
     interested: boolean("interested"),
