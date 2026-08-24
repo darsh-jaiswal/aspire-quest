@@ -109,7 +109,13 @@ test.describe("registration form", () => {
   }) => {
     await page.getByLabel("Full name").fill("Gate Tester");
     await page.getByLabel("Mobile number").fill("12345");
-    await page.getByLabel("CGPA").fill("8;23");
+
+    // Junk is untypeable in the CGPA box: digits, one dot, two digits a side.
+    await page.getByLabel("CGPA").fill("3.33333");
+    await expect(page.getByLabel("CGPA")).toHaveValue("3.33");
+    // A trailing dot survives the keystroke filter (it's a legitimate
+    // mid-typing state) but must still be flagged at Continue.
+    await page.getByLabel("CGPA").fill("8.");
     await page.getByLabel("Programme").selectOption("B.Tech");
     await page.getByLabel("Branch").selectOption("CS");
     await page.getByLabel("Year").selectOption("3rd year");

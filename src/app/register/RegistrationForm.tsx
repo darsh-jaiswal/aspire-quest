@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/Field";
 import { BRANCHES, FOCUS_AREAS, REGISTRATION, REGISTRATION_FEE } from "@/lib/content";
 import { submitRegistration, type RegisterState, type SubmittedValues } from "./actions";
-import { validateForReview } from "./client-validation";
+import { sanitizeCgpa, validateForReview } from "./client-validation";
 import type { SavedDraft } from "./saved-draft";
 
 type UploadState =
@@ -481,6 +481,15 @@ export function RegistrationForm({
                   required
                   className="tabular"
                   defaultValue={values?.cgpa}
+                  // Guarded only when the value actually changes: rewriting
+                  // an uncontrolled input's value throws the cursor to the
+                  // end, which is fine on a rejected keystroke but would
+                  // fight anyone editing mid-value otherwise.
+                  onInput={(event) => {
+                    const input = event.currentTarget;
+                    const next = sanitizeCgpa(input.value);
+                    if (next !== input.value) input.value = next;
+                  }}
                   aria-invalid={errors.cgpa ? true : undefined}
                   aria-describedby={describedBy(fid("cgpa"), "hint", errors.cgpa)}
                 />

@@ -14,6 +14,22 @@ import type { SubmittedValues } from "./actions";
  * Messages are copied verbatim from the zod schema so a student who does
  * reach the server path sees identical wording, not a second dialect.
  */
+/**
+ * Keystroke-level shape for the CGPA box: digits with at most one dot, at
+ * most two digits on either side of it ("10.00" is the widest legal value).
+ * This makes junk untypeable rather than merely flagged — a stray ";" never
+ * lands, "3.33333" stops at "3.33". What it can't decide (a trailing dot,
+ * a value over 10) is still worded by validateForReview below.
+ */
+export function sanitizeCgpa(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned.slice(0, 2);
+  const int = cleaned.slice(0, firstDot).slice(0, 2);
+  const dec = cleaned.slice(firstDot + 1).replace(/\./g, "").slice(0, 2);
+  return `${int}.${dec}`;
+}
+
 export function validateForReview(
   values: SubmittedValues,
   resumeAttached: boolean,

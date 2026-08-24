@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SubmittedValues } from "./actions";
-import { validateForReview } from "./client-validation";
+import { sanitizeCgpa, validateForReview } from "./client-validation";
 
 const VALID: SubmittedValues = {
   fullName: "Asha Patil",
@@ -13,6 +13,31 @@ const VALID: SubmittedValues = {
   skills: "Python, PyTorch",
   consent: true,
 };
+
+describe("sanitizeCgpa", () => {
+  it("caps decimals at two, so runaway typing stops at the valid shape", () => {
+    expect(sanitizeCgpa("3.33333")).toBe("3.33");
+  });
+
+  it("drops anything that is not a digit or a dot", () => {
+    expect(sanitizeCgpa("8;")).toBe("8");
+    expect(sanitizeCgpa("abc")).toBe("");
+  });
+
+  it("keeps only the first dot and merges the rest into decimals", () => {
+    expect(sanitizeCgpa("7.8.5")).toBe("7.85");
+  });
+
+  it("caps the integer part at two digits", () => {
+    expect(sanitizeCgpa("100")).toBe("10");
+    expect(sanitizeCgpa("10.00")).toBe("10.00");
+  });
+
+  it("leaves partial input alone while it is still being typed", () => {
+    expect(sanitizeCgpa("7.")).toBe("7.");
+    expect(sanitizeCgpa("")).toBe("");
+  });
+});
 
 describe("validateForReview", () => {
   it("passes a fully valid form", () => {
