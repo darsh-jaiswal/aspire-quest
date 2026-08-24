@@ -6,8 +6,15 @@ import { z } from "zod";
 import { db } from "@/db";
 import { bundleStudents, bundles } from "@/db/schema";
 import { setStudentStatus } from "@/db/queries/students";
+import { StatusUpdateEmail } from "@/emails/StatusUpdate";
 import { AuthorizationError, requireAdmin } from "@/lib/auth";
 import { recordBulkAudit } from "@/lib/audit";
+import { sendEmail } from "@/lib/email";
+import {
+  isDecisionStatus,
+  statusEmailIdempotencyKey,
+  statusEmailSubject,
+} from "@/lib/status-emails";
 
 export type BulkState =
   | { status: "idle" }
@@ -46,7 +53,11 @@ export async function updateStatuses(
   }
 
   try {
-    const count = await setStudentStatus(parsedIds.data, parsedStatus.data);
+    // Only rows whose status actually changed come back (and never
+    // withdrawn ones) — re-running the same bulk action updates nothing
+    // and therefore emails nothing.
+    const changed = await setStudentStatus(parsedIds.data, parsedStatus.data);
+    const count = changed.length;
     await recordBulkAudit(
       actor,
       "view_student",
@@ -57,9 +68,41 @@ export async function updateStatuses(
     revalidatePath("/admin/students");
     revalidatePath("/admin");
 
+    let emailNote = "";
+    if (isDecisionStatus(parsedStatus.data) && count > 0) {
+      const decision = parsedStatus.data;
+      // Awaited (not waitUntil) so the success message can report the real
+      // sent/failed split — a silent drop against Resend's 100/day free
+      // tier would read as "everyone was told" when they weren't.
+      // sendEmail never throws; it returns false on failure.
+      const results = await Promise.all(
+        changed.map((student) =>
+          sendEmail({
+            to: student.email,
+            subject: statusEmailSubject(decision),
+            react: StatusUpdateEmail({
+              fullName: student.fullName,
+              refCode: student.refCode ?? "—",
+              status: decision,
+            }),
+            idempotencyKey: statusEmailIdempotencyKey(
+              decision,
+              student.refCode ?? `id-${student.id}`,
+            ),
+          }),
+        ),
+      );
+      const sent = results.filter(Boolean).length;
+      const failed = results.length - sent;
+      emailNote =
+        failed === 0
+          ? ` Emailed all ${sent}.`
+          : ` Emailed ${sent} of ${results.length} — ${failed} failed (Resend's free tier caps at 100/day).`;
+    }
+
     return {
       status: "success",
-      message: `${count} candidate${count === 1 ? "" : "s"} marked ${parsedStatus.data}.`,
+      message: `${count} candidate${count === 1 ? "" : "s"} marked ${parsedStatus.data}.${emailNote}`,
     };
   } catch (error) {
     console.error("[admin/students] status update failed:", error);

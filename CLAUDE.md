@@ -26,7 +26,8 @@
 
 - **Confirmation email** sends on every successful registration (`src/app/register/actions.ts`), fire-and-safe via `waitUntil` so it survives after the response is returned. A send failure never fails the registration — the DB row is the real record, the email is a courtesy. See `src/lib/email.ts`.
 - **Reminder emails** (`src/lib/reminders.ts`, cron at `src/app/api/cron/reminders/route.ts`, scheduled daily in `vercel.json`) send at 7/3/1 days before `EDITION.startsAt` (`src/lib/content.ts`). **This is a deliberate no-op while `EDITION.startsAt` is `null`** — Ambiora '27 dates aren't announced yet. Once an organiser sets a real date and redeploys, the cron picks up automatically; no other step needed. Protected by `CRON_SECRET` (set on all environments).
-- Both use React Email templates in `src/emails/`. Idempotency keys prevent duplicate sends on retry.
+- **Decision emails** (2026-08-24): the admin bulk status action emails students on shortlisted/selected/rejected ONLY — internal stages stay silent (`src/lib/status-emails.ts`). `setStudentStatus` returns only rows whose status actually changed (and never withdrawn ones), so re-running a bulk action re-sends nothing. The sends are awaited so the admin sees an honest "Emailed X of Y" count instead of a silent drop against the 100/day cap. Not yet exercised live — needs the first admin account (open thread 1).
+- All use React Email templates in `src/emails/`. Idempotency keys prevent duplicate sends on retry.
 - Resend free tier caps at 100 emails/day — accepted as a known risk for now per the organiser (a registration surge could hit this on confirmations alone). Revisit if it becomes a real problem.
 
 ## Registration payment (Stage 2, built 2026-08-23, verified live same day)

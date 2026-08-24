@@ -9,6 +9,7 @@ import {
   ilike,
   inArray,
   isNull,
+  ne,
   or,
   sql,
   type SQL,
@@ -197,17 +198,42 @@ export async function studentStatusCounts(
   return out;
 }
 
+export type StatusChangedRow = {
+  id: number;
+  email: string;
+  fullName: string;
+  refCode: string | null;
+};
+
+/**
+ * Bulk status write, returning ONLY the rows it actually changed — the
+ * `IS DISTINCT FROM` guard makes re-running a bulk action a no-op, which is
+ * what lets the caller send decision emails off the returned rows without
+ * double-sending. Withdrawn registrations are never status-changed (they
+ * are out of the pipeline entirely).
+ */
 export async function setStudentStatus(
   ids: readonly number[],
   status: StudentStatus,
-): Promise<number> {
-  if (ids.length === 0) return 0;
-  const updated = await db
+): Promise<StatusChangedRow[]> {
+  if (ids.length === 0) return [];
+  return db
     .update(students)
     .set({ status, updatedAt: new Date() })
-    .where(inArray(students.id, [...ids]))
-    .returning({ id: students.id });
-  return updated.length;
+    .where(
+      and(
+        inArray(students.id, [...ids]),
+        isNull(students.withdrawnAt),
+        // status is NOT NULL, so ne() is a null-safe "actually changed".
+        ne(students.status, status),
+      ),
+    )
+    .returning({
+      id: students.id,
+      email: students.email,
+      fullName: students.fullName,
+      refCode: students.refCode,
+    });
 }
 
 /**
