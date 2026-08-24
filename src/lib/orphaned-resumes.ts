@@ -17,10 +17,9 @@
  */
 
 import { del, list } from "@vercel/blob";
-import { isNotNull } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { jobOpenings, students } from "@/db/schema";
-import { libraryReferencedBlobKeys } from "@/db/queries/resumes";
 
 /** A day. A form session is minutes; this is deliberately far beyond it. */
 const GRACE_MS = 24 * 60 * 60 * 1000;
@@ -86,8 +85,20 @@ async function referencedBlobKeys(): Promise<Set<string>> {
   // The resume library: every ACTIVE entry, plus every entry — active or
   // soft-deleted — that an application snapshotted at apply time. A soft-
   // deleted entry nothing ever applied with is the one library case that
-  // may (and should) be reaped.
-  const libraryKeys = await libraryReferencedBlobKeys();
+  // may (and should) be reaped. Queried inline (not via db/queries, whose
+  // files import "server-only") so this module stays importable by its own
+  // unit tests.
+  const activeLibrary = await db.execute(sql`
+    SELECT DISTINCT blob_key FROM resumes WHERE deleted_at IS NULL
+  `);
+  const snapshotted = await db.execute(sql`
+    SELECT DISTINCT r.blob_key
+    FROM resumes r
+    INNER JOIN job_applications ja ON ja.resume_id = r.id
+  `);
+  const libraryKeys = [...activeLibrary.rows, ...snapshotted.rows].map(
+    (row) => (row as { blob_key: string }).blob_key,
+  );
 
   return new Set(
     [...resumeRows, ...jdRows]

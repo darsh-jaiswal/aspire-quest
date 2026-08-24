@@ -212,21 +212,6 @@ export async function ensurePrimaryResume(
   `);
 }
 
-/** Blob keys the orphan sweep must spare, resume-library side. */
-export async function libraryReferencedBlobKeys(): Promise<string[]> {
-  const active = await db.execute(sql`
-    SELECT DISTINCT blob_key FROM resumes WHERE deleted_at IS NULL
-  `);
-  const snapshotted = await db.execute(sql`
-    SELECT DISTINCT r.blob_key
-    FROM resumes r
-    INNER JOIN job_applications ja ON ja.resume_id = r.id
-  `);
-  return [...active.rows, ...snapshotted.rows].map(
-    (row) => (row as { blob_key: string }).blob_key,
-  );
-}
-
 /** The application's snapshot resume, for scoring and the download route. */
 export async function getApplicationResume(
   openingId: number,
