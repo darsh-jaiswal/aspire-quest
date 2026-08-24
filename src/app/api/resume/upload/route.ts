@@ -14,12 +14,24 @@
  * checkbox on the form.
  */
 
+import { auth } from "@clerk/nextjs/server";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { REGISTRATION } from "@/lib/content";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Uploads write to the store the moment a file is picked, before any form
+  // is submitted — an identity is the only thing tying that write to a real
+  // registration. Anonymous writes were possible until 2026-08-24.
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Your session has expired. Sign in again to upload a resume." },
+      { status: 401 },
+    );
+  }
+
   const ip = clientIp(request.headers);
   const limit = await checkRateLimit("upload", ip);
 
@@ -32,6 +44,19 @@ export async function POST(request: Request): Promise<NextResponse> {
             : "Uploads are temporarily unavailable. Please try again shortly.",
       },
       { status: limit.reason === "rate_limited" ? 429 : 503 },
+    );
+  }
+
+  const userLimit = await checkRateLimit("upload-user", userId);
+  if (!userLimit.ok) {
+    return NextResponse.json(
+      {
+        error:
+          userLimit.reason === "rate_limited"
+            ? "Too many upload attempts. Try again in a few minutes."
+            : "Uploads are temporarily unavailable. Please try again shortly.",
+      },
+      { status: userLimit.reason === "rate_limited" ? 429 : 503 },
     );
   }
 

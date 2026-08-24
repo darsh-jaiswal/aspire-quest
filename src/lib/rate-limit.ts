@@ -44,6 +44,13 @@ const LIMITERS = {
   partner: makeLimiter(3, "10 m"),
   alumni: makeLimiter(3, "10 m"),
   upload: makeLimiter(8, "10 m"),
+  /**
+   * Second gate on resume uploads, keyed by the signed-in user rather than
+   * the IP — a campus NAT shares one IP across a hall of students, so the IP
+   * bucket alone would either throttle a registration rush or, loosened, let
+   * one account hammer the store.
+   */
+  "upload-user": makeLimiter(8, "10 m"),
 } as const;
 
 export type LimiterKey = keyof typeof LIMITERS;
