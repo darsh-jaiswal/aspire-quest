@@ -46,6 +46,23 @@ export async function companyStatusCounts(): Promise<
   return out;
 }
 
+/**
+ * Companies waiting on an organiser: self-serve interest submissions (and
+ * anything else moved to `interested`) that nobody has committed or
+ * onboarded yet. The console overview lists these as work to action.
+ */
+export async function listInterestedCompanies() {
+  return db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      createdAt: companies.createdAt,
+    })
+    .from(companies)
+    .where(eq(companies.status, "interested"))
+    .orderBy(desc(companies.updatedAt));
+}
+
 export async function getProblemStatements(companyId: number) {
   return db
     .select()

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SignOutButton, useUser } from "@clerk/nextjs";
+import { consoleDestination } from "@/lib/console-destination";
 
 /**
  * The signed-in indicator for the public site.
@@ -55,6 +56,12 @@ export function AccountBadge() {
   }
 
   const email = user.primaryEmailAddress?.emailAddress ?? "";
+  // Organisers and recruiters get their console here instead of a student
+  // dashboard they have no row in.
+  const destination = consoleDestination(user.publicMetadata?.role) ?? {
+    href: "/dashboard",
+    label: "My application",
+  };
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
   const initials =
     (user.firstName?.[0] ?? email[0] ?? "?").toUpperCase() +
@@ -102,12 +109,12 @@ export function AccountBadge() {
           </div>
 
           <Link
-            href="/dashboard"
+            href={destination.href}
             role="menuitem"
             onClick={() => setOpen(false)}
             className="block px-4 py-2.5 text-sm text-slate transition-colors hover:bg-raised hover:text-navy"
           >
-            My application
+            {destination.label}
           </Link>
 
           <SignOutButton>

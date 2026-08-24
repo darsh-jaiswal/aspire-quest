@@ -3,6 +3,7 @@ import { PageHeading, StatBlock } from "@/components/admin/Shell";
 import {
   companyStatusCounts,
   countPendingReferrals,
+  listInterestedCompanies,
 } from "@/db/queries/companies";
 import { studentStatusCounts } from "@/db/queries/students";
 import { requireAdmin } from "@/lib/auth";
@@ -17,11 +18,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminOverviewPage() {
   await requireAdmin();
 
-  const [students, companies, pendingReferrals] = await Promise.all([
-    studentStatusCounts(),
-    companyStatusCounts(),
-    countPendingReferrals(),
-  ]);
+  const [students, companies, pendingReferrals, interested] =
+    await Promise.all([
+      studentStatusCounts(),
+      companyStatusCounts(),
+      countPendingReferrals(),
+      listInterestedCompanies(),
+    ]);
 
   const totalStudents = Object.values(students).reduce((a, b) => a + b, 0);
   const totalCompanies = Object.values(companies).reduce((a, b) => a + b, 0);
@@ -56,6 +59,37 @@ export default async function AdminOverviewPage() {
           note="Not yet promoted to a lead"
         />
       </div>
+
+      {interested.length > 0 ? (
+        <section aria-labelledby="needs-attention" className="mt-16">
+          <h2
+            id="needs-attention"
+            className="text-eyebrow font-semibold uppercase text-muted"
+          >
+            Needs attention
+          </h2>
+          <ul className="mt-4 border-t border-hairline-strong">
+            {interested.map((company) => (
+              <li
+                key={company.id}
+                className="flex items-baseline justify-between gap-4 border-b border-hairline py-3"
+              >
+                <Link
+                  href={`/admin/companies/${company.id}`}
+                  className="text-sm font-semibold text-navy underline-offset-4 hover:underline"
+                >
+                  {company.name}
+                </Link>
+                <span className="text-sm text-muted">
+                  Interested since{" "}
+                  {company.createdAt.toLocaleDateString("en-IN")} — review and
+                  onboard →
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-16 grid gap-12 lg:grid-cols-2 lg:gap-16">
         <section aria-labelledby="student-pipeline">

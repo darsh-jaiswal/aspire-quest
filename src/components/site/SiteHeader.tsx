@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SITE } from "@/lib/content";
 import { HeaderAccount } from "./HeaderAccount";
@@ -34,17 +33,8 @@ export function SiteHeader() {
           >
             Openings
           </Link>
-          {/* Wrapped rather than hidden directly on the link: ButtonLink's
-              own base class always carries an unconditional `inline-flex`,
-              which fights `hidden` at equal CSS specificity — Tailwind
-              resolves that by generation order, not by which one is more
-              specific, so it isn't reliable. A plain wrapper has no
-              competing display utility to fight. */}
-          <div className="hidden sm:block">
-            <ButtonLink href="/partners" variant="gradient-soft" className="px-4 py-2.5">
-              For recruiters
-            </ButtonLink>
-          </div>
+          {/* "For recruiters" renders inside HeaderAccount: it must hide for
+              accounts that already hold a console, so it is Clerk-aware. */}
           <HeaderAccount />
         </div>
       </Container>

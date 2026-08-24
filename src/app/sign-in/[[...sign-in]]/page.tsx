@@ -30,7 +30,10 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <SignIn />
+        {/* A sign-in that began on a protected page carries its own
+            redirect_url and still returns there; only the walk-in front-door
+            sign-in falls through to the role-aware landing. */}
+        <SignIn fallbackRedirectUrl="/after-sign-in" />
 
         <p className="mt-10 max-w-[44ch] text-center text-sm text-muted">
           Registering as a student? Sign in with Google or Microsoft above —{" "}
