@@ -11,6 +11,7 @@ import {
 } from "@/db/queries/openings";
 import { jobApplications, jobOpenings } from "@/db/schema";
 import { requireRecruiter } from "@/lib/auth";
+import type { OpeningFocusCode } from "@/lib/content";
 import { parseInterest } from "@/lib/interest";
 import {
   ScoringNotConfiguredError,
@@ -120,11 +121,7 @@ export async function createOpening(
       companyId,
       createdBy: actor.userId,
       title: parsed.data.title,
-      focusArea: parsed.data.focusArea as
-        | "core_dev"
-        | "aiml"
-        | "robotics"
-        | "other",
+      focusArea: parsed.data.focusArea as OpeningFocusCode,
       description: parsed.data.description,
       screeningPrompt: parsed.data.screeningPrompt,
       jdBlobKey: parsed.data.jdBlobKey,
@@ -212,11 +209,7 @@ export async function updateOpening(
       .update(jobOpenings)
       .set({
         title: parsed.data.title,
-        focusArea: parsed.data.focusArea as
-          | "core_dev"
-          | "aiml"
-          | "robotics"
-          | "other",
+        focusArea: parsed.data.focusArea as OpeningFocusCode,
         description: parsed.data.description,
         screeningPrompt: parsed.data.screeningPrompt,
         jdBlobKey: parsed.data.jdBlobKey,

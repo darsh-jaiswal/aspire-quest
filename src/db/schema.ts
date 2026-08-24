@@ -32,6 +32,10 @@ export const focusAreaEnum = pgEnum("focus_area", [
   "aiml",
   "robotics",
   "other",
+  // Openings only — an opening may target every pool at once. Registration
+  // validation never offers it to students, and the shared enum is the price
+  // of keeping one vocabulary for both tables.
+  "all",
 ]);
 
 export const studentStatusEnum = pgEnum("student_status", [

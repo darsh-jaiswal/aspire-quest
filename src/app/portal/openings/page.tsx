@@ -3,7 +3,7 @@ import { EmptyState, PageHeading, Pill } from "@/components/admin/Shell";
 import { ButtonLink } from "@/components/ui/Button";
 import { listOpeningsForCompanies } from "@/db/queries/openings";
 import { requireRecruiter } from "@/lib/auth";
-import { FOCUS_AREAS } from "@/lib/content";
+import { OPENING_FOCUS_AREAS } from "@/lib/content";
 
 /**
  * Job openings dashboard — the recruiter's main loop.
@@ -14,7 +14,9 @@ import { FOCUS_AREAS } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
 
-const FOCUS_LABEL = Object.fromEntries(FOCUS_AREAS.map((a) => [a.code, a.name]));
+const FOCUS_LABEL = Object.fromEntries(
+  OPENING_FOCUS_AREAS.map((a) => [a.code, a.name]),
+);
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",

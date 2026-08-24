@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { OpeningFocusCode } from "@/lib/content";
+
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, jobApplications, jobOpenings, students } from "@/db/schema";
@@ -17,7 +19,7 @@ import { companies, jobApplications, jobOpenings, students } from "@/db/schema";
 export type OpeningListRow = {
   id: number;
   title: string;
-  focusArea: "core_dev" | "aiml" | "robotics" | "other";
+  focusArea: OpeningFocusCode;
   status: "draft" | "live" | "closed";
   publishedAt: Date | null;
   applicants: number;
@@ -58,7 +60,7 @@ export type OpeningDetail = {
   companyId: number;
   companyName: string;
   title: string;
-  focusArea: "core_dev" | "aiml" | "robotics" | "other";
+  focusArea: OpeningFocusCode;
   description: string;
   screeningPrompt: string | null;
   jdBlobKey: string | null;

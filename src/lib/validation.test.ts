@@ -3,6 +3,7 @@ import { REGISTRATION } from "./content";
 import {
   alumniReferralSchema,
   fieldErrors,
+  jobOpeningSchema,
   partnerSchema,
   resumeUploadSchema,
   studentRegistrationSchema,
@@ -102,6 +103,13 @@ describe("studentRegistrationSchema", () => {
   test("rejects an unknown focus area", () => {
     const result = studentRegistrationSchema.safeParse(
       validRegistration({ focusArea: "quantum" }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects the openings-only 'all' focus area — students pick a real pool", () => {
+    const result = studentRegistrationSchema.safeParse(
+      validRegistration({ focusArea: "all" }),
     );
     expect(result.success).toBe(false);
   });
@@ -229,6 +237,29 @@ describe("partnerSchema", () => {
   test("rejects a filled honeypot", () => {
     const result = partnerSchema.safeParse({ ...valid, companyFax: "bot" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("jobOpeningSchema", () => {
+  const valid = {
+    title: "Backend Engineering",
+    focusArea: "core_dev",
+    description:
+      "Design, build and maintain scalable server-side applications, robust APIs and core backend infrastructure.",
+  };
+
+  test("accepts a real focus area", () => {
+    expect(jobOpeningSchema.safeParse(valid).success).toBe(true);
+  });
+
+  test("accepts 'all' — an opening may target every pool", () => {
+    const result = jobOpeningSchema.safeParse({ ...valid, focusArea: "all" });
+    expect(result.success).toBe(true);
+  });
+
+  test("no branches selected means all branches eligible", () => {
+    const result = jobOpeningSchema.parse(valid);
+    expect(result.eligibleBranches).toEqual([]);
   });
 });
 

@@ -7,10 +7,20 @@
  */
 
 import { z } from "zod";
-import { BRANCHES, FOCUS_AREAS, REGISTRATION } from "./content";
+import {
+  BRANCHES,
+  FOCUS_AREAS,
+  OPENING_FOCUS_AREAS,
+  REGISTRATION,
+} from "./content";
 
 const branchCodes = BRANCHES.map((b) => b.code) as [string, ...string[]];
 const focusCodes = FOCUS_AREAS.map((f) => f.code) as [string, ...string[]];
+/** Openings additionally accept "all"; students never do. */
+const openingFocusCodes = OPENING_FOCUS_AREAS.map((f) => f.code) as [
+  string,
+  ...string[],
+];
 const yearValues = REGISTRATION.years as readonly string[] as [
   string,
   ...string[],
@@ -226,7 +236,7 @@ export const jobOpeningSchema = z.object({
     .trim()
     .min(4, "Give the opening a title.")
     .max(200, "That title is too long."),
-  focusArea: z.enum(focusCodes, {
+  focusArea: z.enum(openingFocusCodes, {
     message: "Select the focus area this role sits in.",
   }),
   description: z

@@ -11,7 +11,7 @@ import {
   listLiveOpenings,
   type StudentApplication,
 } from "@/db/queries/jobs";
-import { FOCUS_AREAS } from "@/lib/content";
+import { OPENING_FOCUS_AREAS } from "@/lib/content";
 import { applicationWithdrawnAt } from "@/lib/withdrawal";
 
 /**
@@ -28,7 +28,9 @@ export const metadata: Metadata = {
     "Live internship openings from Aspire Quest partner companies. Apply with the profile and resume from your registration.",
 };
 
-const FOCUS_LABEL = Object.fromEntries(FOCUS_AREAS.map((a) => [a.code, a.name]));
+const FOCUS_LABEL = Object.fromEntries(
+  OPENING_FOCUS_AREAS.map((a) => [a.code, a.name]),
+);
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { BRANCHES, FOCUS_AREAS, REGISTRATION } from "@/lib/content";
+import { BRANCHES, OPENING_FOCUS_AREAS, REGISTRATION } from "@/lib/content";
 import { JD_UPLOAD } from "@/lib/openings";
 import {
   createOpening,
@@ -14,8 +14,9 @@ import {
  *
  * Two-column: role content on the left, eligibility filters and the private
  * AI screening prompt on the right. Branch chips are real checkboxes styled
- * as chips, so multi-select works without any client state and submits
- * natively via formData.getAll.
+ * as chips and submit natively via formData.getAll; their checked state is
+ * controlled only so the "All departments" chip can clear them (empty
+ * selection = every branch eligible, same contract as validation.ts).
  *
  * Two submit paths share one action: the clicked button contributes `intent`.
  */
@@ -62,6 +63,12 @@ export function OpeningForm({ opening }: { opening?: EditableOpening }) {
   // React 19 resets every field after a form action returns, so a failed
   // submit re-fills the form from the echoed values instead of wiping it.
   const values = state.status === "error" ? state.values : undefined;
+
+  // Controlled ONLY so the "All departments" chip can clear the selection;
+  // the checkboxes still submit natively. Empty = every branch eligible.
+  const [branches, setBranches] = useState<string[]>(
+    () => values?.eligibleBranches ?? opening?.eligibleBranches ?? [],
+  );
 
   // Client state, so an uploaded JD survives a failed submit — the hidden
   // inputs below are controlled and immune to the post-action form reset.
@@ -158,7 +165,7 @@ export function OpeningForm({ opening }: { opening?: EditableOpening }) {
             defaultValue={values?.focusArea ?? opening?.focusArea}
             className={INPUT}
           >
-            {FOCUS_AREAS.map((area) => (
+            {OPENING_FOCUS_AREAS.map((area) => (
               <option key={area.code} value={area.code}>
                 {area.name}
               </option>
@@ -272,19 +279,35 @@ export function OpeningForm({ opening }: { opening?: EditableOpening }) {
 
           <fieldset>
             <legend className="text-sm font-semibold text-navy">
-              Eligible branches{" "}
-              <span className="ml-1 text-xs font-normal text-muted">
-                optional — all if none selected
-              </span>
+              Eligible branches
             </legend>
             <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBranches([])}
+                aria-pressed={branches.length === 0}
+                className={`rounded border px-3 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-navy ${
+                  branches.length === 0
+                    ? "border-navy bg-navy font-semibold text-white"
+                    : "border-hairline-strong text-slate hover:border-navy"
+                }`}
+              >
+                All departments
+              </button>
               {BRANCHES.map((branch) => (
                 <label key={branch.code} className="cursor-pointer">
                   <input
                     type="checkbox"
                     name="eligibleBranches"
                     value={branch.code}
-                    defaultChecked={(values?.eligibleBranches ?? opening?.eligibleBranches)?.includes(branch.code)}
+                    checked={branches.includes(branch.code)}
+                    onChange={(event) =>
+                      setBranches((current) =>
+                        event.target.checked
+                          ? [...current, branch.code]
+                          : current.filter((code) => code !== branch.code),
+                      )
+                    }
                     className="peer sr-only"
                   />
                   <span className="inline-block rounded border border-hairline-strong px-3 py-1.5 text-sm text-slate transition-colors hover:border-navy peer-checked:border-navy peer-checked:bg-navy peer-checked:font-semibold peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-navy">

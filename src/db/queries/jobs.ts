@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { OpeningFocusCode } from "@/lib/content";
+
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, jobApplications, jobOpenings, students } from "@/db/schema";
@@ -18,7 +20,7 @@ export type PublicOpening = {
   id: number;
   title: string;
   companyName: string;
-  focusArea: "core_dev" | "aiml" | "robotics" | "other";
+  focusArea: OpeningFocusCode;
   description: string;
   skills: string[];
   minCgpa: string | null;

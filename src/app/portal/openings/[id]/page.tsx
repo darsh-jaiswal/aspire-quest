@@ -7,7 +7,7 @@ import {
 } from "@/db/queries/openings";
 import { recordBulkAudit } from "@/lib/audit";
 import { requireRecruiter } from "@/lib/auth";
-import { FOCUS_AREAS } from "@/lib/content";
+import { OPENING_FOCUS_AREAS } from "@/lib/content";
 import { scoringPromptHash } from "@/lib/openings";
 import { applicationWithdrawnAt } from "@/lib/withdrawal";
 import { setOpeningStatus } from "../actions";
@@ -27,7 +27,9 @@ import { RescoreBar } from "./RescoreBar";
 
 export const dynamic = "force-dynamic";
 
-const FOCUS_LABEL = Object.fromEntries(FOCUS_AREAS.map((a) => [a.code, a.name]));
+const FOCUS_LABEL = Object.fromEntries(
+  OPENING_FOCUS_AREAS.map((a) => [a.code, a.name]),
+);
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",

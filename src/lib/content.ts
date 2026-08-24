@@ -213,6 +213,21 @@ export const FOCUS_AREAS: readonly FocusArea[] = [
   },
 ];
 
+/**
+ * Openings may also target every track at once; a student's registration
+ * cannot — they must pick a real pool, so "all" lives here and not in
+ * FOCUS_AREAS.
+ */
+export type OpeningFocusCode = FocusAreaCode | "all";
+
+export const OPENING_FOCUS_AREAS: readonly {
+  code: OpeningFocusCode;
+  name: string;
+}[] = [
+  ...FOCUS_AREAS.map(({ code, name }) => ({ code, name })),
+  { code: "all", name: "All focus areas" },
+];
+
 /* -------------------------------------------------------------------------
  * Ambiora '26 events — context for what the fest is
  * ---------------------------------------------------------------------- */

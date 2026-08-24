@@ -13,7 +13,7 @@ import {
   getPublicOpening,
 } from "@/db/queries/jobs";
 import { listActiveResumes } from "@/db/queries/resumes";
-import { FOCUS_AREAS } from "@/lib/content";
+import { OPENING_FOCUS_AREAS } from "@/lib/content";
 import { checkEligibility } from "@/lib/openings";
 import { applicationWithdrawnAt, canReapply } from "@/lib/withdrawal";
 import { ApplyForm, type ApplyResumeOption } from "./ApplyForm";
@@ -27,7 +27,9 @@ import { AppliedPanel, ReapplyPanel } from "./WithdrawControls";
 
 export const dynamic = "force-dynamic";
 
-const FOCUS_LABEL = Object.fromEntries(FOCUS_AREAS.map((a) => [a.code, a.name]));
+const FOCUS_LABEL = Object.fromEntries(
+  OPENING_FOCUS_AREAS.map((a) => [a.code, a.name]),
+);
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
