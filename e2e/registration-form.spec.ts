@@ -154,4 +154,43 @@ test.describe("registration form", () => {
     await page.getByRole("button", { name: /continue to review/i }).click();
     await expect(page.getByText(/review before you pay/i)).toBeVisible();
   });
+
+  // Regression for a real report: edits made without pressing Confirm & pay
+  // were silently discarded on sign-out, and the form reverted to the last
+  // SUBMITTED attempt. Unsubmitted edits now persist per-device in
+  // localStorage; a reload exercises the identical restore path a
+  // sign-out/sign-in does. Client-side only — no server writes.
+  test("unsubmitted edits and the uploaded resume survive a reload", async ({
+    page,
+  }) => {
+    await page.getByLabel("Full name").fill("Draft Survivor");
+    await page.getByLabel("Mobile number").fill("9876543210");
+    await page.getByLabel("CGPA").fill("9.01");
+    await page.getByLabel("Programme").selectOption("B.Tech");
+    await page.getByLabel("Branch").selectOption("CS");
+    await page.getByLabel("Year").selectOption("3rd year");
+    await page.getByLabel("Skills").fill("Rust, Solidity");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "resume.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 fake resume content for e2e"),
+    });
+    await expect(page.getByText(/resume\.pdf uploaded/i)).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.reload();
+
+    await expect(page.getByText(/welcome back/i)).toBeVisible();
+    await expect(page.getByLabel("Full name")).toHaveValue("Draft Survivor");
+    await expect(page.getByLabel("Mobile number")).toHaveValue("9876543210");
+    await expect(page.getByLabel("CGPA")).toHaveValue("9.01");
+    await expect(page.getByLabel("Programme")).toHaveValue("B.Tech");
+    await expect(page.getByLabel("Branch")).toHaveValue("CS");
+    await expect(page.getByLabel("Year")).toHaveValue("3rd year");
+    await expect(page.getByLabel("Skills")).toHaveValue("Rust, Solidity");
+    await expect(
+      page.getByText(/resume\.pdf is already on file/i),
+    ).toBeVisible();
+  });
 });

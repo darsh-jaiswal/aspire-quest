@@ -1,7 +1,14 @@
 "use client";
 
 import Script from "next/script";
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Button } from "@/components/ui/Button";
 import {
   Checkbox,
@@ -15,7 +22,15 @@ import {
 import { BRANCHES, FOCUS_AREAS, REGISTRATION, REGISTRATION_FEE } from "@/lib/content";
 import { submitRegistration, type RegisterState, type SubmittedValues } from "./actions";
 import { sanitizeCgpa, validateForReview } from "./client-validation";
+import {
+  clearLocalDraft,
+  getLocalDraftSnapshot,
+  saveLocalDraft,
+} from "./local-draft";
 import type { SavedDraft } from "./saved-draft";
+
+/** The draft snapshot never notifies — it is frozen per page load. */
+const subscribeToNothing = () => () => {};
 
 type UploadState =
   | { phase: "empty" }
@@ -133,7 +148,7 @@ export function RegistrationForm({
   savedDraft?: SavedDraft | null;
 }) {
   const [state, formAction, pending] = useActionState(submitRegistration, INITIAL);
-  const [file, setFile] = useState<UploadState>(() =>
+  const [pickedFile, setFile] = useState<UploadState>(() =>
     savedDraft?.resume
       ? {
           phase: "done",
@@ -154,6 +169,56 @@ export function RegistrationForm({
   const [checkoutReady, setCheckoutReady] = useState(false);
   /** Set by "Continue to review" when fields fail the client-side mirror of the server rules. */
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+  /**
+   * Unsubmitted edits from a previous visit on THIS device. The store
+   * snapshot is frozen per page load (see local-draft.ts) and the server
+   * snapshot is null, so the first client render agrees with the server
+   * HTML and the draft applies right after hydration.
+   */
+  const localDraft = useSyncExternalStore(
+    subscribeToNothing,
+    () => getLocalDraftSnapshot(email),
+    () => null,
+  );
+
+  // The draft's resume wins over one restored from the submitted row (it may
+  // be a newer upload) — but never over a file the student picked THIS
+  // session, which is what the `restored` flag distinguishes.
+  const draftResume = localDraft?.resume ?? null;
+  const file: UploadState =
+    draftResume &&
+    (pickedFile.phase === "empty" ||
+      (pickedFile.phase === "done" && pickedFile.restored))
+      ? { phase: "done", ...draftResume, restored: true }
+      : pickedFile;
+
+  // Registration is complete — the database row is the record now.
+  const finished = state.status === "success" || phase === "paid";
+  useEffect(() => {
+    if (finished) clearLocalDraft(email);
+  }, [finished, email]);
+
+  /**
+   * Snapshot the form into the draft. Runs on every change event — writing
+   * a small JSON blob per keystroke is cheap, and "the draft is whatever
+   * the form says right now" leaves no state to reconcile.
+   */
+  function persistDraft(resumeOverride?: { key: string; name: string; bytes: number }) {
+    const form = formRef.current;
+    if (!form) return;
+    const current =
+      resumeOverride ??
+      (file.phase === "done"
+        ? { key: file.key, name: file.name, bytes: file.bytes }
+        : null);
+    saveLocalDraft(
+      email,
+      readFormValues(form),
+      current
+        ? { ...current, fromRow: savedDraft?.resume?.key === current.key }
+        : null,
+    );
+  }
 
   const hasClientErrors = Object.keys(clientErrors).length > 0;
   const errors = hasClientErrors
@@ -162,14 +227,25 @@ export function RegistrationForm({
       ? (state.errors ?? {})
       : {};
   // What the fields default to: the error echo (what the student just typed)
-  // wins over the restored draft, which wins over blank.
-  const values = state.status === "error" ? state.values : savedDraft?.values;
+  // wins over unsubmitted edits from this device, which win over the last
+  // submitted attempt, which wins over blank.
+  const values =
+    state.status === "error"
+      ? state.values
+      : (localDraft?.values ?? savedDraft?.values);
   const fid = (name: string) => `${id}-${name}`;
 
   // Forces the uncontrolled fields below to remount with fresh `defaultValue`s
   // on every new error — otherwise React drops what the student typed the
-  // moment a `<form action>` submission completes, success or failure.
-  const formKey = state.status === "error" ? JSON.stringify(state) : "initial";
+  // moment a `<form action>` submission completes, success or failure. The
+  // local-draft case needs the same remount: the draft loads AFTER hydration,
+  // so its defaults only take effect if the fields are recreated.
+  const formKey =
+    state.status === "error"
+      ? JSON.stringify(state)
+      : localDraft
+        ? "local-draft"
+        : "initial";
 
   // A fee is configured and the row is saved — open Razorpay Checkout. The
   // browser's role stops here: `handler` only moves the UI to "confirming".
@@ -296,6 +372,9 @@ export function RegistrationForm({
         name: selected.name,
         bytes: selected.size,
       });
+      // The form's onChange fired while the upload was still in flight, so
+      // the draft doesn't know the key yet — snapshot again now that it does.
+      persistDraft({ key, name: selected.name, bytes: selected.size });
     } catch (error) {
       console.error("[register] resume upload failed:", error);
       setFile({
@@ -375,7 +454,15 @@ export function RegistrationForm({
         />
       ) : null}
 
-      <form ref={formRef} action={formAction} className="relative" noValidate>
+      <form
+        ref={formRef}
+        action={formAction}
+        className="relative"
+        noValidate
+        // Change events from every field bubble here — each one snapshots
+        // the whole form into the device-local draft.
+        onChange={() => persistDraft()}
+      >
         <Honeypot name="website" />
 
         {state.status === "error" ? (
@@ -393,11 +480,11 @@ export function RegistrationForm({
           </div>
         ) : null}
 
-        {savedDraft && state.status === "idle" && !inReview ? (
+        {(localDraft || savedDraft) && state.status === "idle" && !inReview ? (
           <p className="mb-8 rounded border border-hairline-strong bg-amber-wash px-4 py-3 text-sm text-slate">
             <span className="font-semibold text-navy">Welcome back.</span> The
-            details you saved earlier are filled in below, resume included.
-            Check them and continue when you&rsquo;re ready.
+            details you entered earlier are filled in below. Check them and
+            continue when you&rsquo;re ready.
           </p>
         ) : null}
 
