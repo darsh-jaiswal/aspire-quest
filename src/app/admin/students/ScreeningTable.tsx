@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Pill } from "@/components/admin/Shell";
 import { FOCUS_AREAS } from "@/lib/content";
-import { addToBundle, updateStatuses, type BulkState } from "./actions";
+import { updateStatuses, type BulkState } from "./actions";
 
 type Row = {
   id: number;
@@ -21,8 +21,6 @@ type Row = {
   status: string;
   paymentStatus: string;
 };
-
-type BundleOption = { id: number; label: string };
 
 const INITIAL: BulkState = { status: "idle" };
 
@@ -42,20 +40,10 @@ const STATUS_TONE: Record<
   rejected: "critical",
 };
 
-export function ScreeningTable({
-  rows,
-  bundleOptions,
-}: {
-  rows: Row[];
-  bundleOptions: BundleOption[];
-}) {
+export function ScreeningTable({ rows }: { rows: Row[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [statusState, statusAction, statusPending] = useActionState(
     updateStatuses,
-    INITIAL,
-  );
-  const [bundleState, bundleAction, bundlePending] = useActionState(
-    addToBundle,
     INITIAL,
   );
 
@@ -74,12 +62,7 @@ export function ScreeningTable({
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
   }
 
-  const feedback =
-    statusState.status !== "idle"
-      ? statusState
-      : bundleState.status !== "idle"
-        ? bundleState
-        : null;
+  const feedback = statusState.status !== "idle" ? statusState : null;
 
   return (
     <div>
@@ -118,39 +101,6 @@ export function ScreeningTable({
               {statusPending ? "Applying…" : "Apply"}
             </button>
           </form>
-
-          {bundleOptions.length > 0 ? (
-            <form action={bundleAction} className="flex items-center gap-2">
-              {[...selected].map((id) => (
-                <input key={id} type="hidden" name="studentIds" value={id} />
-              ))}
-              <label htmlFor="bulk-bundle" className="sr-only">
-                Add to bundle
-              </label>
-              <select
-                id="bulk-bundle"
-                name="bundleId"
-                defaultValue=""
-                className="rounded border border-white/25 bg-navy px-2.5 py-1.5 text-sm text-white"
-              >
-                <option value="" disabled>
-                  Add to bundle…
-                </option>
-                {bundleOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={bundlePending}
-                className="rounded border border-white/25 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-white/10 disabled:opacity-50"
-              >
-                {bundlePending ? "Adding…" : "Add"}
-              </button>
-            </form>
-          ) : null}
 
           <button
             type="button"

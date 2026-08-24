@@ -45,9 +45,8 @@ export function PartnerForm() {
         </h2>
         <p className="mt-4 max-w-[54ch] text-slate">
           The organising team reviews partner submissions and follows up by
-          email to confirm onboarding, interview format and the candidate
-          bundles you will receive. Corporate onboarding closes eight to ten
-          weeks before the fest.
+          email to confirm onboarding, portal access and interview format.
+          Corporate onboarding closes eight to ten weeks before the fest.
         </p>
       </div>
     );
@@ -188,7 +187,7 @@ export function PartnerForm() {
             label="Focus area"
             htmlFor={fid("focusArea")}
             error={errors.focusArea}
-            hint="Determines which candidate bundle you receive."
+            hint="The talent pool your openings draw from."
             required
           >
             <Select

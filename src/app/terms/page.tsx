@@ -51,7 +51,7 @@ export default function TermsPage() {
         <p>
           Registering, and being screened, does not guarantee an interview
           slot or a job offer. Partner companies set their own requirements
-          and review candidate bundles independently; meeting the published
+          and review applications independently; meeting the published
           CGPA threshold makes you eligible for consideration, not for a
           guaranteed outcome.
         </p>

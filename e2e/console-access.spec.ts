@@ -23,7 +23,7 @@ for (const path of ["/admin", "/portal"]) {
     const response = await page.goto(path);
 
     await expect(
-      page.getByRole("heading", { name: /overview|candidate sets/i }),
+      page.getByRole("heading", { name: /overview|job openings/i }),
     ).toHaveCount(0);
 
     // If it rendered at all (200), it must be the sign-in page, not the

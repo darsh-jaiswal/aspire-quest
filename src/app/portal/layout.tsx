@@ -25,7 +25,6 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
   { href: "/portal/openings", label: "Job openings" },
-  { href: "/portal", label: "Candidate sets", exact: true },
 ];
 
 export default async function PortalLayout({

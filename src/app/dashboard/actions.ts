@@ -10,7 +10,7 @@ import { requireStudent } from "@/lib/auth";
  *
  * Policy (owner decision, 2026-08-24): the row and its payment record are
  * KEPT (the fee is non-refundable and /privacy's retention terms apply);
- * the student disappears from screening, exports, bundles, reminder emails
+ * the student disappears from screening, exports, reminder emails
  * and new applications; reversal is a manual organiser action.
  *
  * Write order matters — there are no transactions here. students.withdrawn_at

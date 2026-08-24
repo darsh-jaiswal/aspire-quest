@@ -20,9 +20,9 @@ export function TalentPool() {
           Screened by focus area, not by CV pile.
         </h2>
         <p className="mt-6 text-lede text-slate">
-          Every registration declares one focus area. That is what a partner
-          company&rsquo;s candidate bundle is built from, alongside a CGPA floor
-          and branch filter set per role.
+          Every registration declares one focus area. That is how candidates
+          are screened for a partner company&rsquo;s openings, alongside a CGPA
+          floor and branch filter set per role.
         </p>
       </div>
 

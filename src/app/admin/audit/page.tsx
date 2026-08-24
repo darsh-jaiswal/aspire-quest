@@ -52,7 +52,7 @@ export default async function AuditPage() {
       {entries.length === 0 ? (
         <EmptyState
           title="Nothing recorded yet"
-          body="Entries appear as soon as anyone opens a candidate, a bundle, a resume, or runs an export."
+          body="Entries appear as soon as anyone opens a candidate or a resume, or runs an export."
         />
       ) : (
         <div className="overflow-x-auto rounded border border-hairline">

@@ -22,7 +22,7 @@ import { RescoreBar } from "./RescoreBar";
  * response as an id that does not exist.
  *
  * Reading this list is a read of student PII: one bulk audit row per page
- * view, same as the bundle page.
+ * view.
  */
 
 export const dynamic = "force-dynamic";

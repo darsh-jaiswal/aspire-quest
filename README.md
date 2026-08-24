@@ -7,7 +7,7 @@ It does four things:
 1. Sells Aspire Quest to recruiters and alumni.
 2. Captures corporate partners and their problem statements.
 3. Collects student registrations with resumes and screens them by CGPA, branch and focus area.
-4. Produces the focus-area candidate bundles recruiters receive.
+4. Runs the openings marketplace: recruiters post roles and review exactly the students who applied to them.
 
 ---
 
@@ -125,7 +125,7 @@ Ambiora '27's creative theme is undecided, so palette, accent and the hero slot 
 
 This holds student PII (name, email, phone, **CGPA**) and resumes. Under the DPDP Act, CGPA and phone are personal data.
 
-- **Authorization is re-checked in every Server Action and route handler.** Middleware is a first gate, never the only one. A recruiter may read only bundles belonging to their own company — enforced in the query, not the UI.
+- **Authorization is re-checked in every Server Action and route handler.** Middleware is a first gate, never the only one. A recruiter may read only candidates who applied to their own company's openings — enforced in the query, not the UI.
 - **Resumes** live in a private Blob store. No public URL exists. Reads go through short-TTL signed URLs minted server-side after an authz check, and every access writes an `audit_log` row.
 - **Uploads** are PDF-only and 5 MB-capped, enforced by the upload token itself (`src/app/api/resume/upload/route.ts`), not by client-side `accept`. Keys get a random suffix — never the user's filename.
 - **Validation**: Zod at every boundary (`src/lib/validation.ts`). Drizzle parameterized queries only.
@@ -167,21 +167,21 @@ The shipped CSP (`next.config.ts`) is the strictest *static-compatible* version:
 | 3. Schema & migrations | Done — `drizzle/0000_init.sql`, 9 tables, pushed to Neon (`neon-erin-mountain`) |
 | 4. Public marketing site | Done |
 | 5. Public intake forms | Done — student, partner, alumni. Database is live; resume upload still needs `BLOB_READ_WRITE_TOKEN` |
-| 6. Admin console | Done — screening, pipeline, bundles, alumni, audit, CSV in/out. Needs Clerk keys to run |
-| 7. Recruiter portal | Done — released sets, candidate review, interest marks, notes, resume reads. Needs Clerk keys to run |
+| 6. Admin console | Done — screening, pipeline, alumni, audit, CSV in/out. (Candidate bundles removed 2026-08-24 — the openings marketplace is the only sharing channel.) Needs Clerk keys to run |
+| 7. Recruiter portal | Done — job openings, AI-ranked applicant review, interest marks, resume reads. Needs Clerk keys to run |
 | 8. Harden & verify | Partial — headers, validation/CSV/policy/interest tests done. E2E covers the public site, console fail-closed behaviour and the registration form's static contract (`npm run test:e2e`). Full-submission E2E, load and Lighthouse outstanding — the former needs Blob + a database configured |
 
 ## Console access
 
 `/admin` is the organiser console; `/portal` is the recruiter view. Both sit behind Clerk.
 
-The two are separate route trees on purpose. `/portal` is gated by `requireRecruiter`, which rejects **admins as well as anonymous traffic**, so a recruiter never loads a page whose data functions were written assuming an organiser caller. Recruiter-facing reads live in `src/db/queries/portal.ts` and take the permitted company ids as a required argument — there is no read-a-bundle-by-id function a recruiter path could reach.
+The two are separate route trees on purpose. `/portal` is gated by `requireRecruiter`, which rejects **admins as well as anonymous traffic**, so a recruiter never loads a page whose data functions were written assuming an organiser caller. Recruiter-facing reads live in `src/db/queries/openings.ts` and take the permitted company ids as a required argument — there is no read-by-id function a recruiter path could reach without its company filter.
 
 ### What a recruiter can do
 
-- See **released** bundles belonging to their own company, and nothing else. A draft, or another company's set, returns 404 — the same response as a set that does not exist, so the portal cannot be used to discover that one exists.
-- Open a candidate's resume, through the same audited `/api/resume/download` handler the console uses.
-- Mark each candidate **interested / passed / not reviewed**, and leave a private note. These are the only writes an external party can make. Both re-derive company authority from the database rather than from the submitted form, and a bundle withdrawn back to draft stops accepting them immediately.
+- Post and manage **job openings** for their own company, and see the applicants to those openings, AI-ranked — and nothing else. Another company's opening returns 404, the same response as one that does not exist, so the portal cannot be used to discover that it exists.
+- Open an applicant's resume — the exact file snapshotted at apply time — through the same audited `/api/resume/download` handler the console uses.
+- Mark each applicant **interested / passed / not reviewed**. These writes re-derive company authority from the database rather than from the submitted form.
 
 Interest is a tri-state, not a boolean — "not yet reviewed" must never render as "everyone was rejected". The toggle lives in `src/lib/interest.ts` as pure functions shared by the action and the UI, so the two cannot disagree about what a click means.
 
@@ -202,8 +202,7 @@ Without Clerk keys every `/admin` route returns 500 rather than rendering. That 
 The actual decisions live in `src/lib/access-policy.ts` as pure functions with no I/O, covered by tests including explicit fail-closed cases. The rules:
 
 - An admin may read anything.
-- A recruiter may read a candidate **only** if that candidate sits in a **released** bundle belonging to a company the recruiter is a member of.
-- A recruiter never sees a draft bundle, including their own company's.
+- A recruiter may read a candidate **only** if that candidate applied to an opening of a company the recruiter is a member of — applying is the student's act of sharing.
 - A recruiter with no membership can read nothing.
 - Unauthorised resume requests return **404, not 403** — confirming a student id exists is itself a disclosure.
 

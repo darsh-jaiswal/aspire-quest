@@ -21,7 +21,7 @@ import { fieldErrors, jobOpeningSchema } from "@/lib/validation";
 /**
  * Job-opening writes, all recruiter-side.
  *
- * Same ordering discipline as the bundle actions: authenticate first, re-read
+ * Ordering discipline: authenticate first, re-read
  * authority FROM THE DATABASE second, decide third, and scope the UPDATE so a
  * substituted id cannot reach another company's rows. Company authority is
  * never taken from the form.

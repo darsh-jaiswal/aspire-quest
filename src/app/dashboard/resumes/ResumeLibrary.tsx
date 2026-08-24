@@ -60,7 +60,7 @@ export function ResumeLibrary({
         </span>
       </h2>
       <p className="mt-3 max-w-[62ch] text-sm text-muted">
-        The primary resume is what recruiters and bundles see by default; when
+        The primary resume is what the organising team sees by default; when
         you apply to an opening you choose which one goes with that
         application, and that choice is permanent for the application — later
         changes here never rewrite what a company already received.

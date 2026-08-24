@@ -6,7 +6,7 @@
  *
  * The model: up to MAX_ACTIVE_RESUMES active entries per student, exactly
  * one primary. The primary is what registration submitted and what
- * bundles/admin read; applications snapshot whichever entry was chosen at
+ * the admin console reads; applications snapshot whichever entry was chosen at
  * apply time, permanently. Deletion is always soft — a snapshot must
  * survive the library losing its entry.
  */
@@ -38,7 +38,7 @@ export type DeleteVerdict =
 /**
  * The primary cannot be deleted — deleting it would either leave no primary
  * or silently promote another entry, mutating what future applications and
- * bundle readers get. The student sets a different primary first, which is
+ * readers get. The student sets a different primary first, which is
  * an explicit choice instead of a hidden one.
  */
 export function canDeleteResume(

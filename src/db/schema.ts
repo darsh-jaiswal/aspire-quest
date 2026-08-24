@@ -72,6 +72,8 @@ export const auditActionEnum = pgEnum("audit_action", [
   "view_student",
   "view_resume",
   "export_csv",
+  // Retired 2026-08-24 (bundles removed) — kept because Postgres cannot
+  // drop an enum value and historical audit rows may carry it.
   "view_bundle",
 ]);
 
@@ -169,11 +171,11 @@ export const students = pgTable(
     /** Receipt trail. Set in the same statement that sets paymentStatus='paid'. */
     paidAt: timestamp("paid_at", { withTimezone: true }),
 
-    /** Explicit, timestamped consent. Required before any bundle sharing. */
+    /** Explicit, timestamped consent. Required before any resume sharing. */
     consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
 
     /**
-     * A withdrawn registration: hidden from screening, exports, bundles,
+     * A withdrawn registration: hidden from screening, exports,
      * reminders and new applications, but the row (and its payment record)
      * is kept — the fee is non-refundable by policy and the data-retention
      * promise in /privacy still applies. Reversal is a manual organiser
@@ -218,7 +220,7 @@ export const students = pgTable(
  *
  * Up to three ACTIVE rows per student (enforced in the write, not here —
  * see src/lib/resume-library.ts), exactly one of them primary. The primary
- * is what registration submits and what bundles/admin read; applications
+ * is what registration submits and what the admin console reads; applications
  * snapshot whichever row was chosen at apply time via
  * jobApplications.resumeId, and that reference is permanent.
  *
@@ -229,7 +231,7 @@ export const students = pgTable(
  * adding blob columns elsewhere means updating orphaned-resumes.ts.
  *
  * `students.resume*` stays as a mirror of the primary row so existing
- * readers (bundles, admin, CSV export) keep working unchanged.
+ * readers (admin console, CSV export) keep working unchanged.
  * ---------------------------------------------------------------------- */
 
 export const resumes = pgTable(
@@ -456,62 +458,13 @@ export const outreachLog = pgTable(
 );
 
 /* -------------------------------------------------------------------------
- * Bundles — the focus-area candidate sets a recruiter actually receives
- * ---------------------------------------------------------------------- */
-
-export const bundles = pgTable(
-  "bundles",
-  {
-    id: serial("id").primaryKey(),
-    companyId: integer("company_id")
-      .notNull()
-      .references(() => companies.id, { onDelete: "cascade" }),
-    title: varchar("title", { length: 200 }).notNull(),
-    focusArea: focusAreaEnum("focus_area").notNull(),
-    /** CGPA floor this bundle was built at, recorded for auditability. */
-    cgpaThreshold: numeric("cgpa_threshold", { precision: 4, scale: 2 }),
-    /** Null until an admin releases it; recruiters see released bundles only. */
-    releasedAt: timestamp("released_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    index("bundles_company_idx").on(table.companyId),
-    index("bundles_released_idx").on(table.releasedAt),
-  ],
-);
-
-export const bundleStudents = pgTable(
-  "bundle_students",
-  {
-    bundleId: integer("bundle_id")
-      .notNull()
-      .references(() => bundles.id, { onDelete: "cascade" }),
-    studentId: integer("student_id")
-      .notNull()
-      .references(() => students.id, { onDelete: "cascade" }),
-    /** Recruiter-set interest flag. Null = not yet reviewed. */
-    interested: boolean("interested"),
-    recruiterNote: text("recruiter_note"),
-    addedAt: timestamp("added_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.bundleId, table.studentId] }),
-    index("bundle_students_student_idx").on(table.studentId),
-  ],
-);
-
-/* -------------------------------------------------------------------------
  * Job openings — recruiter-authored postings students apply to
  *
- * The marketplace flow, distinct from bundles: a recruiter publishes an
- * opening, students apply from their login, and the applicant list is ranked
- * by AI against the opening's private screening prompt. Publishing is
- * self-serve by deliberate product decision (2026-08-23) — there is no
- * organiser approval gate on openings, unlike bundle release.
+ * The marketplace flow: a recruiter publishes an opening, students apply
+ * from their login, and the applicant list is ranked by AI against the
+ * opening's private screening prompt. Publishing is self-serve by
+ * deliberate product decision (2026-08-23) — there is no organiser
+ * approval gate.
  * ---------------------------------------------------------------------- */
 
 export const jobOpenings = pgTable(
@@ -611,7 +564,7 @@ export const jobApplications = pgTable(
      */
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
 
-    /** Recruiter-set interest flag, same tri-state as bundle_students. */
+    /** Recruiter-set interest flag. Null = not yet reviewed. */
     interested: boolean("interested"),
 
     /** 0–100. Null = not yet scored (or scoring skipped: no resume). */
@@ -668,7 +621,7 @@ export const auditLog = pgTable(
 /* -------------------------------------------------------------------------
  * Recruiter ↔ company membership
  *
- * The authorisation spine: a recruiter may only ever read bundles belonging
+ * The authorisation spine: a recruiter may only ever read candidates who
  * to the company they are a member of. Enforced in the query, not the UI.
  * ---------------------------------------------------------------------- */
 
@@ -702,7 +655,6 @@ export const recruiterMemberships = pgTable(
 export const companiesRelations = relations(companies, ({ many }) => ({
   problemStatements: many(problemStatements),
   outreach: many(outreachLog),
-  bundles: many(bundles),
   recruiters: many(recruiterMemberships),
   jobOpenings: many(jobOpenings),
 }));
@@ -730,7 +682,6 @@ export const jobApplicationsRelations = relations(
 );
 
 export const studentsRelations = relations(students, ({ many }) => ({
-  bundleLinks: many(bundleStudents),
   paymentOrders: many(paymentOrders),
   resumes: many(resumes),
 }));
@@ -745,25 +696,6 @@ export const resumesRelations = relations(resumes, ({ one }) => ({
 export const paymentOrdersRelations = relations(paymentOrders, ({ one }) => ({
   student: one(students, {
     fields: [paymentOrders.studentId],
-    references: [students.id],
-  }),
-}));
-
-export const bundlesRelations = relations(bundles, ({ one, many }) => ({
-  company: one(companies, {
-    fields: [bundles.companyId],
-    references: [companies.id],
-  }),
-  students: many(bundleStudents),
-}));
-
-export const bundleStudentsRelations = relations(bundleStudents, ({ one }) => ({
-  bundle: one(bundles, {
-    fields: [bundleStudents.bundleId],
-    references: [bundles.id],
-  }),
-  student: one(students, {
-    fields: [bundleStudents.studentId],
     references: [students.id],
   }),
 }));
@@ -809,7 +741,6 @@ export type PaymentEvent = typeof paymentEvents.$inferSelect;
 export type NewPaymentEvent = typeof paymentEvents.$inferInsert;
 export type Company = typeof companies.$inferSelect;
 export type NewCompany = typeof companies.$inferInsert;
-export type Bundle = typeof bundles.$inferSelect;
 export type ProblemStatement = typeof problemStatements.$inferSelect;
 export type AlumniReferral = typeof alumniReferrals.$inferSelect;
 export type AuditLogEntry = typeof auditLog.$inferSelect;

@@ -39,9 +39,9 @@ export default function PrivacyPage() {
         <h2>Why we collect it</h2>
         <p>
           To run {SITE.name}&rsquo;s recruitment track: to screen
-          registrations, group shortlisted students into candidate bundles
-          for partner companies, confirm your registration payment, and send
-          you the reference code and event-related emails.
+          registrations, share your application with the partner companies
+          whose openings you apply to, confirm your registration payment, and
+          send you the reference code and event-related emails.
         </p>
       </section>
 
@@ -50,10 +50,10 @@ export default function PrivacyPage() {
         <p>
           Your application is visible to the {SITE.name} organising team. Your
           resume and application details are shared with a partner company
-          only once you are shortlisted into a bundle that company has
-          received, and every such access is individually logged. Partner
-          companies never see the full pool of registrations — only the
-          students placed in a bundle released to them.
+          only when you apply to one of that company&rsquo;s openings —
+          applying is your act of sharing — and every such access is
+          individually logged. Partner companies never see the full pool of
+          registrations, only the students who applied to them.
         </p>
       </section>
 

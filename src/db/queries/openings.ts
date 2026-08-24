@@ -196,8 +196,8 @@ export async function getOpeningCompany(
  * Companies whose openings this student has applied to.
  *
  * Feeds the resume-download authorization: applying to a company's opening is
- * the student's own act of sharing with that company, so it grants the same
- * resume-read standing a released bundle does. Draft/closed status does not
+ * the student's own act of sharing with that company, and it is the ONLY
+ * thing that grants resume-read standing. Draft/closed status does not
  * revoke it — the application still exists and is still being evaluated.
  */
 export async function companiesStudentAppliedTo(

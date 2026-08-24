@@ -177,7 +177,7 @@ export const BRANCHES: readonly Branch[] = [
   { code: "IT-MT", name: "Information Technology", programme: "MBA.Tech" },
 ];
 
-/** Focus areas — these drive the recruiter candidate bundles. */
+/** Focus areas — these drive screening and partner openings. */
 export type FocusAreaCode = "core_dev" | "aiml" | "robotics" | "other";
 
 export type FocusArea = {
@@ -258,7 +258,7 @@ export const PHASES: readonly Phase[] = [
     window: "4–6 weeks out",
     title: "Student intake & screening",
     summary:
-      "Registration opens. Applications are screened on CGPA, branch and focus area, and resumes are collected into focus-area candidate bundles.",
+      "Registration opens. Applications are screened on CGPA, branch and focus area, and students apply to partner openings in their focus area.",
     audience: "students",
   },
   {
@@ -266,7 +266,7 @@ export const PHASES: readonly Phase[] = [
     window: "Fest week",
     title: "On-campus interviews",
     summary:
-      "Partners receive their candidate bundles and run interviews on campus across the three days of Ambiora.",
+      "Partners review the candidates who applied to their openings and run interviews on campus across the three days of Ambiora.",
     audience: "both",
   },
   {
@@ -309,7 +309,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     question: "Does registering guarantee an interview?",
     answer:
-      "No. Registrations are screened against the requirements each partner company sets, and shortlisted candidates are grouped into focus-area bundles that partners review. Meeting the CGPA threshold makes you eligible for consideration, not for a guaranteed slot.",
+      "No. Registrations are screened against the requirements each partner company sets, and partners review the applications to their own openings. Meeting the CGPA threshold makes you eligible for consideration, not for a guaranteed slot.",
   },
   {
     question: "What happened at the last edition?",
@@ -319,7 +319,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     question: "How is my data handled?",
     answer:
-      "Your resume is stored in private encrypted storage and is never exposed by a public link. Only the organising team and the specific partner company your bundle is shared with can view it, through a short-lived access link, and every such access is logged. You consent to this explicitly at registration, and records are purged after the stated retention window.",
+      "Your resume is stored in private encrypted storage and is never exposed by a public link. Only the organising team and the specific partner companies whose openings you apply to can view it, and every such access is logged. You consent to this explicitly at registration, and records are purged after the stated retention window.",
   },
   {
     question: "Our company wants to recruit here. How do we start?",

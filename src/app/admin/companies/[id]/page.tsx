@@ -2,7 +2,6 @@ import { clerkClient } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading, Pill } from "@/components/admin/Shell";
-import { listBundles } from "@/db/queries/bundles";
 import {
   getCompany,
   getOutreach,
@@ -33,14 +32,11 @@ export default async function CompanyDetailPage({
   const company = await getCompany(companyId);
   if (!company) notFound();
 
-  const [problems, outreach, allBundles, memberships] = await Promise.all([
+  const [problems, outreach, memberships] = await Promise.all([
     getProblemStatements(companyId),
     getOutreach(companyId),
-    listBundles(),
     listRecruiterMemberships(companyId),
   ]);
-
-  const bundles = allBundles.filter((b) => b.companyId === companyId);
 
   // Emails live in Clerk, not our database — resolve each membership's user.
   // A lookup that fails (deleted account) still renders, labelled as such.
@@ -142,45 +138,6 @@ export default async function CompanyDetailPage({
             </p>
           )}
 
-          <h2 className="mt-12 text-eyebrow font-semibold uppercase text-muted">
-            Candidate bundles
-          </h2>
-          {bundles.length > 0 ? (
-            <ul className="mt-4 border-t border-hairline-strong">
-              {bundles.map((bundle) => (
-                <li
-                  key={bundle.id}
-                  className="flex flex-wrap items-baseline justify-between gap-3 border-b border-hairline py-3"
-                >
-                  <Link
-                    href={`/admin/bundles/${bundle.id}`}
-                    className="text-sm font-semibold text-navy underline-offset-4 hover:underline"
-                  >
-                    {bundle.title}
-                  </Link>
-                  <span className="flex items-center gap-3 text-xs text-muted">
-                    <span data-figure>{bundle.size} candidates</span>
-                    {bundle.releasedAt ? (
-                      <Pill tone="positive">Released</Pill>
-                    ) : (
-                      <Pill tone="muted">Draft</Pill>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-muted">
-              No bundles yet.{" "}
-              <Link
-                href="/admin/bundles"
-                className="font-semibold text-navy underline-offset-4 hover:underline"
-              >
-                Create one
-              </Link>
-              , then add candidates from the screening view.
-            </p>
-          )}
         </div>
 
         <div className="lg:col-span-5">

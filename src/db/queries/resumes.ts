@@ -166,7 +166,7 @@ export async function setPrimaryResume(
 
 /**
  * Copy the current primary into students.resume* — the mirror that keeps
- * bundles, the admin student page and the CSV export working unchanged.
+ * the admin student page and the CSV export working unchanged.
  */
 export async function syncPrimaryMirror(studentId: number): Promise<void> {
   await db.execute(sql`

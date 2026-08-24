@@ -38,10 +38,10 @@ export function canActForCompany(
 /**
  * May this actor read a student's resume?
  *
- * `permittedCompanyIds` is the set of companies whose RELEASED bundles contain
- * that student. An empty set means nobody but an admin may read it — which is
- * the correct answer for a candidate who has been registered but not yet
- * shortlisted into any released bundle.
+ * `permittedCompanyIds` is the set of companies the student has APPLIED to —
+ * applying is the student's act of sharing. An empty set means nobody but an
+ * admin may read it, which is the correct answer for a candidate who has
+ * registered but not yet applied anywhere.
  */
 export function canReadStudentResume(
   actor: PolicyActor,
@@ -51,15 +51,4 @@ export function canReadStudentResume(
   if (actor.role === "admin") return true;
   if (actor.companyIds.length === 0) return false;
   return permittedCompanyIds.some((id) => actor.companyIds.includes(id));
-}
-
-/** May this actor see a bundle at all? Drafts are admin-only, always. */
-export function canViewBundle(
-  actor: PolicyActor,
-  bundle: { companyId: number; releasedAt: Date | null },
-): boolean {
-  if (actor.role === "student") return false;
-  if (actor.role === "admin") return true;
-  if (!bundle.releasedAt) return false;
-  return actor.companyIds.includes(bundle.companyId);
 }

@@ -637,7 +637,7 @@ export function RegistrationForm({
             </legend>
 
             <p className="mt-3 text-sm text-muted">
-              Pick one. This is what your candidate bundle is built from.
+              Pick one. Partner openings are screened against it.
             </p>
 
             <div
@@ -1005,7 +1005,7 @@ function SuccessPanel({ refCode }: { refCode: string }) {
 
       <p className="mt-8 max-w-[52ch] text-sm text-muted">
         Shortlisted candidates are contacted by email once partner companies
-        have reviewed the candidate bundles for their focus area.
+        have reviewed the applications to their openings.
       </p>
     </div>
   );

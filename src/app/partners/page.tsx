@@ -36,8 +36,8 @@ export default function PartnersPage() {
               </h1>
               <p className="mt-5 text-lede text-slate">
                 Tell us the roles and the problem you want candidates assessed
-                against. You receive a screened, focus-area candidate bundle
-                before you arrive.
+                against. Post your openings and screened, focus-area
+                candidates apply to you directly.
               </p>
 
               <dl className="mt-10 border-t border-hairline">

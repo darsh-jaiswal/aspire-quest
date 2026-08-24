@@ -1,5 +1,4 @@
 import { get } from "@vercel/blob";
-import { companiesWithAccessToStudent } from "@/db/queries/bundles";
 import { companiesStudentAppliedTo } from "@/db/queries/openings";
 import { getApplicationResume } from "@/db/queries/resumes";
 import { getStudent } from "@/db/queries/students";
@@ -15,10 +14,10 @@ import { requireActor } from "@/lib/auth";
  *
  *   1. The raw blob URL is NEVER returned to the client. The bytes are streamed
  *      through this handler after an authorization check.
- *   2. An admin may read any resume. A recruiter may read a resume ONLY if the
- *      student sits in a RELEASED bundle belonging to a company that recruiter
- *      is a member of — checked against the database, never against anything
- *      the client sent.
+ *   2. An admin may read any resume. A recruiter may read a resume ONLY if
+ *      the student applied to an opening of a company that recruiter is a
+ *      member of — checked against the database, never against anything the
+ *      client sent.
  *   3. Every successful read writes an audit row before the bytes go out.
  *
  * Failure mode is 404 rather than 403 for recruiters: telling an unauthorised
@@ -40,8 +39,8 @@ export async function GET(request: Request): Promise<Response> {
 
   // Optional: scope the read to one application's SNAPSHOT resume — the file
   // actually submitted to that opening, which may differ from the student's
-  // current primary. Recruiters' applicant lists pass this; bundle and admin
-  // reads stay whole-profile (the primary, via the students mirror).
+  // current primary. Recruiters' applicant lists pass this; admin reads
+  // stay whole-profile (the primary, via the students mirror).
   const rawOpeningId = url.searchParams.get("openingId");
   let openingId: number | null = null;
   if (rawOpeningId !== null) {
@@ -65,14 +64,10 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Decided by the tested policy in @/lib/access-policy, not inline here.
-  // Standing comes from either sharing channel: a released bundle (organiser-
-  // curated) or the student's own application to one of the company's job
-  // openings — applying is itself the student's act of sharing.
-  const [bundleCompanies, applicationCompanies] = await Promise.all([
-    companiesWithAccessToStudent(studentId),
-    companiesStudentAppliedTo(studentId),
-  ]);
-  const permitted = [...new Set([...bundleCompanies, ...applicationCompanies])];
+  // Standing comes from the student's own application to one of the
+  // company's job openings — applying is itself the student's act of
+  // sharing. (Curated bundles, the second channel, were removed 2026-08-24.)
+  const permitted = await companiesStudentAppliedTo(studentId);
   if (!canReadStudentResume(actor, permitted)) {
     return new Response("Not found", { status: 404 });
   }

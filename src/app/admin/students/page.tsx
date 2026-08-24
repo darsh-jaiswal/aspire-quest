@@ -1,5 +1,4 @@
 import { EmptyState, PageHeading } from "@/components/admin/Shell";
-import { listBundles } from "@/db/queries/bundles";
 import {
   countStudents,
   listStudents,
@@ -75,10 +74,9 @@ export default async function StudentsPage({
   const params = await searchParams;
   const filters = parseFilters(params);
 
-  const [rows, total, allBundles] = await Promise.all([
+  const [rows, total] = await Promise.all([
     listStudents(filters, PAGE_SIZE),
     countStudents(filters),
-    listBundles(),
   ]);
 
   // One row for the whole screening view, not one per candidate. See audit.ts.
@@ -104,7 +102,7 @@ export default async function StudentsPage({
       <PageHeading
         title="Students"
         count={total}
-        description="Screen registrations by CGPA, branch and focus area, then group the shortlist into a candidate bundle for a partner company."
+        description="Screen registrations by CGPA, branch and focus area, and move candidates through the pipeline."
       />
 
       <Filters
@@ -132,10 +130,6 @@ export default async function StudentsPage({
               rows={rows.map((row) => ({
                 ...row,
                 skills: [...row.skills],
-              }))}
-              bundleOptions={allBundles.map((bundle) => ({
-                id: bundle.id,
-                label: `${bundle.companyName} · ${bundle.title}`,
               }))}
             />
             {total > rows.length ? (

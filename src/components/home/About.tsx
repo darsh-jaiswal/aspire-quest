@@ -8,7 +8,7 @@ const DISTINCTIONS = [
   },
   {
     title: "Candidates are screened before anyone meets them",
-    body: "Applications are filtered on CGPA, branch and declared focus area. Partners receive a bundle matched to the roles they are actually hiring for, not a spreadsheet of everyone who signed up.",
+    body: "Applications are filtered on CGPA, branch and declared focus area. Partners see the candidates who applied to the roles they are actually hiring for, not a spreadsheet of everyone who signed up.",
   },
   {
     title: "The Placement Cell is in the loop",

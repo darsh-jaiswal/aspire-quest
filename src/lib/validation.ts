@@ -122,8 +122,8 @@ const studentRegistrationFields = z.object({
  *
  * Without this a student can submit programme "B.Tech" with branch "CE-MT",
  * which is an MBA.Tech branch. Nothing downstream would reject it, and the
- * admin console's branch filter would then silently mis-sort that candidate
- * out of the bundle they belong in.
+ * admin console's branch filter would then silently mis-sort that
+ * candidate in screening.
  */
 export const studentRegistrationSchema = studentRegistrationFields.superRefine(
   (value, ctx) => {

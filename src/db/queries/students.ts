@@ -15,7 +15,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { db } from "@/db";
-import { bundleStudents, students } from "@/db/schema";
+import { students } from "@/db/schema";
 
 export type FocusAreaCode = "core_dev" | "aiml" | "robotics" | "other";
 export type StudentStatus =
@@ -56,9 +56,8 @@ const SORTS = {
 
 function buildWhere(filters: ScreeningFilters): SQL | undefined {
   // A withdrawn registration is out of the pipeline everywhere this filter
-  // reaches: the screening list, the CSV export, dashboard counts, and (via
-  // the list-driven bundle builder) new bundles. Reinstating a student is a
-  // manual organiser action, documented in CLAUDE.md.
+  // reaches: the screening list, the CSV export, and dashboard counts.
+  // Reinstating a student is a manual organiser action, see CLAUDE.md.
   const clauses: SQL[] = [isNull(students.withdrawnAt)];
 
   const paymentFilter = filters.paymentFilter ?? "paid";
@@ -277,13 +276,3 @@ export async function getStudentAccountByClerkId(
   return row ?? null;
 }
 
-/** Students already in a bundle, so the builder can exclude them. */
-export async function studentIdsInBundle(
-  bundleId: number,
-): Promise<number[]> {
-  const rows = await db
-    .select({ studentId: bundleStudents.studentId })
-    .from(bundleStudents)
-    .where(eq(bundleStudents.bundleId, bundleId));
-  return rows.map((r) => r.studentId);
-}
