@@ -521,9 +521,13 @@ export function RegistrationForm({
               </Field>
 
               {/* min-w-0: a grid child won't shrink below its content, and an
-                  email is one unbreakable token — without both this and the
-                  mid-token break, a long address drags the whole column wide
-                  and misaligns the form (same trap as the screening table). */}
+                  email is one unbreakable token — without it a long address
+                  drags the whole column wide and misaligns the form (same
+                  trap as the screening table). The box keeps ONE line: an
+                  RTL-direction wrapper puts the ellipsis at the START, so a
+                  too-long address hides its beginning and keeps the readable
+                  tail; the inner span isolates the address back to LTR so the
+                  characters render in order. Full address on hover (title). */}
               <div className="min-w-0">
                 <span className="block text-sm font-semibold text-navy">
                   Email
@@ -531,8 +535,13 @@ export function RegistrationForm({
                 <p className="mt-1 text-xs text-muted">
                   From the account you signed in with. Shortlist updates go here.
                 </p>
-                <p className="mt-2 rounded border border-hairline-strong bg-sunken px-3.5 py-2.5 text-slate [overflow-wrap:anywhere]">
-                  {email}
+                <p
+                  title={email}
+                  className="mt-2 truncate rounded border border-hairline-strong bg-sunken px-3.5 py-2.5 text-left text-slate [direction:rtl]"
+                >
+                  <span className="[direction:ltr] [unicode-bidi:isolate]">
+                    {email}
+                  </span>
                 </p>
               </div>
 
