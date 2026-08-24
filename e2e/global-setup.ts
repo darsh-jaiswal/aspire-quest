@@ -1,5 +1,8 @@
 import { clerkSetup } from "@clerk/testing/playwright";
-import { TEST_STUDENT_EMAIL } from "./support/clerk";
+import {
+  TEST_PREFILL_STUDENT_EMAIL,
+  TEST_STUDENT_EMAIL,
+} from "./support/clerk";
 
 /**
  * Runs once before the suite.
@@ -13,13 +16,16 @@ import { TEST_STUDENT_EMAIL } from "./support/clerk";
 
 const CLERK_API = "https://api.clerk.com/v1";
 
-async function ensureTestStudent(secretKey: string): Promise<void> {
+async function ensureTestStudent(
+  secretKey: string,
+  email: string,
+): Promise<void> {
   const headers = {
     Authorization: `Bearer ${secretKey}`,
     "Content-Type": "application/json",
   };
 
-  const query = `${CLERK_API}/users?email_address=${encodeURIComponent(TEST_STUDENT_EMAIL)}`;
+  const query = `${CLERK_API}/users?email_address=${encodeURIComponent(email)}`;
   const lookup = await fetch(query, { headers });
   if (!lookup.ok) {
     throw new Error(
@@ -34,7 +40,7 @@ async function ensureTestStudent(secretKey: string): Promise<void> {
     method: "POST",
     headers,
     body: JSON.stringify({
-      email_address: [TEST_STUDENT_EMAIL],
+      email_address: [email],
       first_name: "Aspire",
       last_name: "Tester",
       // The instance has password disabled as a first factor, so the account
@@ -59,6 +65,7 @@ export default async function globalSetup(): Promise<void> {
     );
   }
 
-  await ensureTestStudent(secretKey);
+  await ensureTestStudent(secretKey, TEST_STUDENT_EMAIL);
+  await ensureTestStudent(secretKey, TEST_PREFILL_STUDENT_EMAIL);
   await clerkSetup();
 }

@@ -14,11 +14,13 @@ import {
 } from "@/components/ui/Field";
 import { BRANCHES, FOCUS_AREAS, REGISTRATION, REGISTRATION_FEE } from "@/lib/content";
 import { submitRegistration, type RegisterState, type SubmittedValues } from "./actions";
+import type { SavedDraft } from "./saved-draft";
 
 type UploadState =
   | { phase: "empty" }
   | { phase: "uploading"; percent: number; name: string }
-  | { phase: "done"; key: string; name: string; bytes: number }
+  /** `restored`: rehydrated from a saved pending row rather than picked in this session. */
+  | { phase: "done"; key: string; name: string; bytes: number; restored?: boolean }
   | { phase: "error"; message: string };
 
 /**
@@ -122,12 +124,25 @@ function readFormValues(form: HTMLFormElement): SubmittedValues {
 export function RegistrationForm({
   email,
   suggestedName,
+  savedDraft,
 }: {
   email: string;
   suggestedName: string;
+  /** A saved-but-unpaid earlier attempt to restore, if the account has one. */
+  savedDraft?: SavedDraft | null;
 }) {
   const [state, formAction, pending] = useActionState(submitRegistration, INITIAL);
-  const [file, setFile] = useState<UploadState>({ phase: "empty" });
+  const [file, setFile] = useState<UploadState>(() =>
+    savedDraft?.resume
+      ? {
+          phase: "done",
+          key: savedDraft.resume.key,
+          name: savedDraft.resume.name,
+          bytes: savedDraft.resume.bytes,
+          restored: true,
+        }
+      : { phase: "empty" },
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const id = useId();
@@ -138,7 +153,9 @@ export function RegistrationForm({
   const [checkoutReady, setCheckoutReady] = useState(false);
 
   const errors = state.status === "error" ? (state.errors ?? {}) : {};
-  const values = state.status === "error" ? state.values : undefined;
+  // What the fields default to: the error echo (what the student just typed)
+  // wins over the restored draft, which wins over blank.
+  const values = state.status === "error" ? state.values : savedDraft?.values;
   const fid = (name: string) => `${id}-${name}`;
 
   // Forces the uncontrolled fields below to remount with fresh `defaultValue`s
@@ -170,7 +187,8 @@ export function RegistrationForm({
         // page session (see the .close() cleanup above, which helps but
         // isn't a guarantee). A real reload clears every bit of that client
         // state — the student's row is already saved server-side from this
-        // submit, so nothing is lost except having to retype the form.
+        // submit, and the reloaded page restores it as `savedDraft`, so
+        // nothing is lost at all.
         ondismiss: () => {
           // A real browser navigation on purpose, not router.push() — a soft
           // SPA transition wouldn't reload the page at all here (same
@@ -346,6 +364,14 @@ export function RegistrationForm({
           >
             {state.message}
           </div>
+        ) : null}
+
+        {savedDraft && state.status === "idle" && !inReview ? (
+          <p className="mb-8 rounded border border-hairline-strong bg-amber-wash px-4 py-3 text-sm text-slate">
+            <span className="font-semibold text-navy">Welcome back.</span> The
+            details you saved earlier are filled in below, resume included.
+            Check them and continue when you&rsquo;re ready.
+          </p>
         ) : null}
 
         {inReview ? (
@@ -566,7 +592,9 @@ export function RegistrationForm({
                 ) : null}
                 {file.phase === "done" ? (
                   <p className="font-semibold text-positive">
-                    {file.name} uploaded.
+                    {file.restored
+                      ? `${file.name} is already on file — choose a file only to replace it.`
+                      : `${file.name} uploaded.`}
                   </p>
                 ) : null}
               </div>

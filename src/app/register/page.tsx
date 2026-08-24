@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { students } from "@/db/schema";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Container } from "@/components/ui/Container";
@@ -8,6 +11,7 @@ import { Eyebrow } from "@/components/ui/Section";
 import { requireStudent } from "@/lib/auth";
 import { EDITION, REGISTRATION } from "@/lib/content";
 import { RegistrationForm } from "./RegistrationForm";
+import { savedDraftFrom, type SavedDraft } from "./saved-draft";
 
 export const metadata: Metadata = {
   title: "Student registration",
@@ -30,6 +34,40 @@ export default async function RegisterPage() {
   const suggestedName = [user?.firstName, user?.lastName]
     .filter(Boolean)
     .join(" ");
+
+  // A student who saved details but never completed payment has a
+  // pending_payment row (the action's upsert keeps it editable). Read it back
+  // so a sign-out or reload doesn't present a blank form over saved data —
+  // including the resume, whose stored blob key is resubmittable as-is. Paid
+  // rows are deliberately excluded: the action refuses to resubmit those, so
+  // prefilling one would invite a submit that can only fail.
+  let savedDraft: SavedDraft | null = null;
+  if (user) {
+    const [row] = await db
+      .select({
+        fullName: students.fullName,
+        phone: students.phone,
+        cgpa: students.cgpa,
+        programme: students.programme,
+        branch: students.branch,
+        year: students.year,
+        focusArea: students.focusArea,
+        skills: students.skills,
+        resumeBlobKey: students.resumeBlobKey,
+        resumeFilename: students.resumeFilename,
+        resumeBytes: students.resumeBytes,
+      })
+      .from(students)
+      .where(
+        and(
+          eq(students.clerkUserId, user.id),
+          eq(students.paymentStatus, "pending_payment"),
+        ),
+      )
+      .limit(1);
+
+    savedDraft = row ? savedDraftFrom(row) : null;
+  }
 
   return (
     // Clerk's session cookie is a short-lived JWT (60s) that Clerk's client
@@ -84,7 +122,11 @@ export default async function RegisterPage() {
           </div>
 
           <div className="lg:col-span-8">
-            <RegistrationForm email={email} suggestedName={suggestedName} />
+            <RegistrationForm
+              email={email}
+              suggestedName={suggestedName}
+              savedDraft={savedDraft}
+            />
           </div>
         </Container>
       </main>
