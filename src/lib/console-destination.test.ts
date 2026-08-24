@@ -9,9 +9,9 @@ describe("consoleDestination", () => {
     });
   });
 
-  it("sends recruiters to the portal", () => {
+  it("sends recruiters straight to their job openings", () => {
     expect(consoleDestination("recruiter")).toEqual({
-      href: "/portal",
+      href: "/portal/openings",
       label: "Recruiter portal",
     });
   });
