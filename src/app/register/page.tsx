@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { students } from "@/db/schema";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -38,29 +38,16 @@ export default async function RegisterPage() {
 
   // A paid registration is done — this form has nothing left to offer it,
   // and the action refuses resubmission anyway. The dashboard is its home.
-  if (user) {
-    const [paid] = await db
-      .select({ id: students.id })
-      .from(students)
-      .where(
-        and(
-          eq(students.clerkUserId, user.id),
-          eq(students.paymentStatus, "paid"),
-        ),
-      )
-      .limit(1);
-    if (paid) redirect("/dashboard");
-  }
-
-  // A student who saved details but never completed payment has a
-  // pending_payment row (the action's upsert keeps it editable). Read it back
-  // so a sign-out or reload doesn't present a blank form over saved data —
-  // including the resume, whose stored blob key is resubmittable as-is. Paid
-  // rows are handled above: they never see this form again.
+  // ONE query answers both questions this page has about the account's row:
+  // a paid row means the dashboard is its home (the action refuses
+  // resubmission anyway), and a pending_payment row is a saved-but-unpaid
+  // attempt to restore into the form — resume included, whose stored blob
+  // key is resubmittable as-is. Serial queries here were pure latency.
   let savedDraft: SavedDraft | null = null;
   if (user) {
     const [row] = await db
       .select({
+        paymentStatus: students.paymentStatus,
         fullName: students.fullName,
         phone: students.phone,
         cgpa: students.cgpa,
@@ -74,15 +61,12 @@ export default async function RegisterPage() {
         resumeBytes: students.resumeBytes,
       })
       .from(students)
-      .where(
-        and(
-          eq(students.clerkUserId, user.id),
-          eq(students.paymentStatus, "pending_payment"),
-        ),
-      )
+      .where(eq(students.clerkUserId, user.id))
       .limit(1);
 
-    savedDraft = row ? savedDraftFrom(row) : null;
+    if (row?.paymentStatus === "paid") redirect("/dashboard");
+    savedDraft =
+      row && row.paymentStatus === "pending_payment" ? savedDraftFrom(row) : null;
   }
 
   return (

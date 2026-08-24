@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { OpeningFocusCode } from "@/lib/content";
 
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -58,8 +59,11 @@ export async function listLiveOpenings(): Promise<PublicOpening[]> {
  * One opening for the public detail page. Live and closed openings render
  * (closed shows "applications closed" — the posting was public knowledge);
  * a draft is indistinguishable from nothing.
+ *
+ * React-cached per request: generateMetadata and the page both need it, and
+ * without the cache that is two identical round-trips per view.
  */
-export async function getPublicOpening(
+export const getPublicOpening = cache(async function getPublicOpening(
   openingId: number,
 ): Promise<PublicOpening | null> {
   const [row] = await db
@@ -75,7 +79,7 @@ export async function getPublicOpening(
     .limit(1);
 
   return row ?? null;
-}
+});
 
 /**
  * The signed-in account's registered-and-paid student row, or null.

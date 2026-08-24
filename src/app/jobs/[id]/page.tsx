@@ -84,24 +84,29 @@ export default async function OpeningPage({
       if (!student) {
         viewer = { kind: "unregistered" };
       } else {
-        const application = await getApplication(opening.id, student.id);
+        // One round-trip instead of two: whichever branch below renders, it
+        // needs at most the application row and the resume list — fetch both
+        // together rather than serially (Neon HTTP pays per query).
+        const [application, resumeRows] = await Promise.all([
+          getApplication(opening.id, student.id),
+          listActiveResumes(student.id),
+        ]);
+        // Primary-first ordering makes resumes[0] the picker default.
+        const resumes = resumeRows.map((resume) => ({
+          id: resume.id,
+          filename: resume.filename,
+          isPrimary: resume.isPrimary,
+        }));
         const withdrawnAt = application
           ? applicationWithdrawnAt(application, student)
           : null;
 
         if (application && withdrawnAt) {
           const reapplyAllowed = canReapply(opening.status, application, student);
-          const resumes = reapplyAllowed
-            ? await listActiveResumes(student.id)
-            : [];
           viewer = {
             kind: "withdrawn",
             canReapply: reapplyAllowed,
-            resumes: resumes.map((resume) => ({
-              id: resume.id,
-              filename: resume.filename,
-              isPrimary: resume.isPrimary,
-            })),
+            resumes: reapplyAllowed ? resumes : [],
           };
         } else if (application) {
           viewer = { kind: "applied", appliedAt: application.appliedAt };
@@ -109,20 +114,9 @@ export default async function OpeningPage({
           viewer = { kind: "registration_withdrawn" };
         } else {
           const eligibility = checkEligibility(opening, student);
-          if (!eligibility.eligible) {
-            viewer = { kind: "ineligible", reason: eligibility.reason };
-          } else {
-            // Primary-first ordering makes resumes[0] the picker default.
-            const resumes = await listActiveResumes(student.id);
-            viewer = {
-              kind: "eligible",
-              resumes: resumes.map((resume) => ({
-                id: resume.id,
-                filename: resume.filename,
-                isPrimary: resume.isPrimary,
-              })),
-            };
-          }
+          viewer = eligibility.eligible
+            ? { kind: "eligible", resumes }
+            : { kind: "ineligible", reason: eligibility.reason };
         }
       }
     }

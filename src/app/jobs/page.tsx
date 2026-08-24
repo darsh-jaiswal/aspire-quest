@@ -44,20 +44,24 @@ const CLERK_CONFIGURED = Boolean(
 );
 
 export default async function JobsPage() {
-  const openings = await listLiveOpenings();
-
-  let applications: StudentApplication[] = [];
-  let registrationWithdrawnAt: Date | null = null;
-  if (CLERK_CONFIGURED) {
+  // The public list does not depend on who is asking — fetch it alongside
+  // the signed-in viewer's own data instead of before it (Neon HTTP pays
+  // latency per query, so serial awaits add up).
+  const viewerData = async () => {
+    if (!CLERK_CONFIGURED) return null;
     const { userId } = await auth();
-    if (userId) {
-      const student = await getPaidStudentByClerkId(userId);
-      if (student) {
-        registrationWithdrawnAt = student.withdrawnAt;
-        applications = await listApplicationsForStudent(student.id);
-      }
-    }
-  }
+    if (!userId) return null;
+    const student = await getPaidStudentByClerkId(userId);
+    if (!student) return null;
+    return {
+      withdrawnAt: student.withdrawnAt,
+      applications: await listApplicationsForStudent(student.id),
+    };
+  };
+
+  const [openings, viewer] = await Promise.all([listLiveOpenings(), viewerData()]);
+  const applications: StudentApplication[] = viewer?.applications ?? [];
+  const registrationWithdrawnAt: Date | null = viewer?.withdrawnAt ?? null;
 
   return (
     <>

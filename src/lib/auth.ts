@@ -56,11 +56,32 @@ function parseGrantedRole(value: unknown): Role | null {
  * now means exactly one thing: no session.
  */
 export const getActor = cache(async (): Promise<Actor | null> => {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   if (!userId) return null;
 
-  const user = await currentUser();
-  const role = parseGrantedRole(user?.publicMetadata?.role) ?? "student";
+  // Fast path: when the Clerk session token is customised to carry
+  // public metadata (Dashboard → Sessions → Customize session token,
+  // `{"metadata": "{{user.public_metadata}}"}`), the role is already in the
+  // JWT and the per-request Clerk API round-trip disappears. Without that
+  // customisation the claim is absent and we fall back to currentUser() —
+  // never weaker, only slower.
+  const claims = sessionClaims as
+    | { metadata?: { role?: unknown }; publicMetadata?: { role?: unknown } }
+    | null;
+  const claimedRole =
+    parseGrantedRole(claims?.metadata?.role) ??
+    parseGrantedRole(claims?.publicMetadata?.role);
+
+  let role: Role;
+  if (claimedRole) {
+    role = claimedRole;
+  } else if (claims?.metadata || claims?.publicMetadata) {
+    // The claim exists and holds no granted role — that IS the answer.
+    role = "student";
+  } else {
+    const user = await currentUser();
+    role = parseGrantedRole(user?.publicMetadata?.role) ?? "student";
+  }
 
   if (role === "admin") {
     return { userId, role, companyIds: [] };
