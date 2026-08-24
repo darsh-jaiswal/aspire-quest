@@ -91,6 +91,17 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    /**
+     * Client router cache for dynamic pages (default 0 since Next 15):
+     * revisiting a console tab within 30s renders instantly from the cached
+     * segment instead of holding a skeleton through a full server round
+     * trip. The console's own mutations stay immediate — Server Actions
+     * purge this cache via the revalidatePath they already call. The cost
+     * is that changes made by OTHERS can read up to 30s stale.
+     */
+    staleTimes: { dynamic: 30 },
+  },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
