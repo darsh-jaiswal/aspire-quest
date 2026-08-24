@@ -45,9 +45,6 @@ export function SiteHeader() {
               For recruiters
             </ButtonLink>
           </div>
-          <ButtonLink href="/register" variant="gradient" className="px-4 py-2.5">
-            Register
-          </ButtonLink>
           <HeaderAccount />
         </div>
       </Container>

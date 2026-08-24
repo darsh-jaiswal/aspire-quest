@@ -972,9 +972,15 @@ function SuccessPanel({ refCode }: { refCode: string }) {
       </p>
       <h2 className="mt-5 text-h2 font-semibold">Save this reference code.</h2>
       <p className="mt-4 max-w-[52ch] text-slate">
-        There is no student dashboard to check back into, so this code is how
-        the organising team identifies your application. Write it down or
-        screenshot this screen.
+        This code is how the organising team identifies your application. It
+        stays available on{" "}
+        <a
+          href="/dashboard"
+          className="font-semibold text-navy underline underline-offset-4"
+        >
+          your application page
+        </a>
+        , along with your status and everything you submitted.
       </p>
 
       <p

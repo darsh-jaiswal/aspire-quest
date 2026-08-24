@@ -17,6 +17,8 @@ const isProtectedRoute = createRouteMatcher([
   // Registration requires an identity so the email address is verified rather
   // than typed. Browsing stays anonymous — only this route is gated.
   "/register(.*)",
+  // The student's own application — nothing to show without an identity.
+  "/dashboard(.*)",
 ]);
 
 /**

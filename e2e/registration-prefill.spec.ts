@@ -1,6 +1,6 @@
-import { neon } from "@neondatabase/serverless";
 import { expect, test } from "@playwright/test";
 import { signInAsStudent, TEST_PREFILL_STUDENT_EMAIL } from "./support/clerk";
+import { clerkUserIdFor, sqlClient } from "./support/seed";
 
 /**
  * The read-back half of the abandoned-attempt flow: a student who saved
@@ -29,32 +29,6 @@ const SAVED = {
   resumeFilename: "prefill-resume.pdf",
   resumeBytes: 12_345,
 };
-
-async function clerkUserIdFor(email: string): Promise<string> {
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) throw new Error("CLERK_SECRET_KEY is not set.");
-
-  const res = await fetch(
-    `https://api.clerk.com/v1/users?email_address=${encodeURIComponent(email)}`,
-    { headers: { Authorization: `Bearer ${secretKey}` } },
-  );
-  if (!res.ok) {
-    throw new Error(`Clerk user lookup failed (${res.status}): ${await res.text()}`);
-  }
-  const users = (await res.json()) as { id: string }[];
-  if (!users[0]) {
-    throw new Error(
-      `No Clerk user for ${email} — global-setup should have created it.`,
-    );
-  }
-  return users[0].id;
-}
-
-function sqlClient() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set.");
-  return neon(url);
-}
 
 test.describe("registration prefill", () => {
   let clerkUserId: string;

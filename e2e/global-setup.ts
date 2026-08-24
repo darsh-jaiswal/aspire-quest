@@ -1,5 +1,6 @@
 import { clerkSetup } from "@clerk/testing/playwright";
 import {
+  TEST_PAID_STUDENT_EMAIL,
   TEST_PREFILL_STUDENT_EMAIL,
   TEST_STUDENT_EMAIL,
 } from "./support/clerk";
@@ -67,5 +68,6 @@ export default async function globalSetup(): Promise<void> {
 
   await ensureTestStudent(secretKey, TEST_STUDENT_EMAIL);
   await ensureTestStudent(secretKey, TEST_PREFILL_STUDENT_EMAIL);
+  await ensureTestStudent(secretKey, TEST_PAID_STUDENT_EMAIL);
   await clerkSetup();
 }

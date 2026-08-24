@@ -24,6 +24,15 @@ export const TEST_STUDENT_EMAIL = "aspire.quest.e2e+clerk_test@example.com";
 export const TEST_PREFILL_STUDENT_EMAIL =
   "aspire.quest.e2e.prefill+clerk_test@example.com";
 
+/**
+ * A third account for suites that seed a PAID registration (dashboard,
+ * resume library, withdrawal). Separate for the same parallel-worker
+ * reason: the blank-form account must stay row-less, and the prefill
+ * account's row must stay pending_payment.
+ */
+export const TEST_PAID_STUDENT_EMAIL =
+  "aspire.quest.e2e.paid+clerk_test@example.com";
+
 export async function signInAsStudent(
   page: Page,
   email: string = TEST_STUDENT_EMAIL,

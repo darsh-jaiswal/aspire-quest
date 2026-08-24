@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
@@ -35,12 +36,27 @@ export default async function RegisterPage() {
     .filter(Boolean)
     .join(" ");
 
+  // A paid registration is done — this form has nothing left to offer it,
+  // and the action refuses resubmission anyway. The dashboard is its home.
+  if (user) {
+    const [paid] = await db
+      .select({ id: students.id })
+      .from(students)
+      .where(
+        and(
+          eq(students.clerkUserId, user.id),
+          eq(students.paymentStatus, "paid"),
+        ),
+      )
+      .limit(1);
+    if (paid) redirect("/dashboard");
+  }
+
   // A student who saved details but never completed payment has a
   // pending_payment row (the action's upsert keeps it editable). Read it back
   // so a sign-out or reload doesn't present a blank form over saved data —
   // including the resume, whose stored blob key is resubmittable as-is. Paid
-  // rows are deliberately excluded: the action refuses to resubmit those, so
-  // prefilling one would invite a submit that can only fail.
+  // rows are handled above: they never see this form again.
   let savedDraft: SavedDraft | null = null;
   if (user) {
     const [row] = await db

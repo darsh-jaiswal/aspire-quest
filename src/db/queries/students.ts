@@ -205,6 +205,46 @@ export async function setStudentStatus(
   return updated.length;
 }
 
+/**
+ * The signed-in student's own row, whatever its payment state — the one
+ * query behind /dashboard. Reading your own row is not an audited admin
+ * read; it deliberately returns the full profile the student typed,
+ * including phone, because it is theirs.
+ */
+const ACCOUNT_COLUMNS = {
+  id: students.id,
+  refCode: students.refCode,
+  fullName: students.fullName,
+  email: students.email,
+  phone: students.phone,
+  branch: students.branch,
+  programme: students.programme,
+  year: students.year,
+  cgpa: students.cgpa,
+  focusArea: students.focusArea,
+  skills: students.skills,
+  resumeFilename: students.resumeFilename,
+  status: students.status,
+  paymentStatus: students.paymentStatus,
+  paidAt: students.paidAt,
+  createdAt: students.createdAt,
+} as const;
+
+export type StudentAccountRow = {
+  [K in keyof typeof ACCOUNT_COLUMNS]: (typeof students)["$inferSelect"][K];
+};
+
+export async function getStudentAccountByClerkId(
+  clerkUserId: string,
+): Promise<StudentAccountRow | null> {
+  const [row] = await db
+    .select(ACCOUNT_COLUMNS)
+    .from(students)
+    .where(eq(students.clerkUserId, clerkUserId))
+    .limit(1);
+  return row ?? null;
+}
+
 /** Students already in a bundle, so the builder can exclude them. */
 export async function studentIdsInBundle(
   bundleId: number,
