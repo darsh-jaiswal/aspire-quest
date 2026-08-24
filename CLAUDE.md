@@ -47,9 +47,21 @@
 - **Reinstating a withdrawn registration is manual, by design**: `UPDATE students SET withdrawn_at = NULL WHERE ref_code = 'AQ-…';` then, for each application the student wants revived, `UPDATE job_applications SET withdrawn_at = NULL WHERE student_id = … AND opening_id = …;` — do NOT blanket-clear application withdrawals; some may have been withdrawn individually on purpose.
 - E2E: paid-state suites use their own account (`aspire.quest.e2e.paid+clerk_test@example.com`) and seed/clean their own rows — a leaked PAID row is reaped by **no** cron, so the suite's own idempotent delete is the only cleanup. Running the full suite repeatedly within ~10 minutes trips Clerk's dev-instance sign-in throttling and the upload rate-limit bucket (both keyed to one local identity) — space runs out, don't chase the timeouts as regressions.
 
+## Test logins (created 2026-08-24)
+
+The Clerk instance has **no password sign-in** (email code / Google / Microsoft only). These three use Clerk's `+clerk_test` convention: sign in with the email, pick the emailed-code option, and the code is always **424242** — no real mail is sent. Distinct from the three e2e suite accounts, which must not be reused by hand.
+
+| Console | Email | Role |
+|---|---|---|
+| /admin (organiser) | `aspire.quest.test.admin+clerk_test@example.com` | `admin` |
+| /portal (recruiter) | `aspire.quest.test.recruiter+clerk_test@example.com` | `recruiter`, member of "Portal Test Co" |
+| student | `aspire.quest.test.student+clerk_test@example.com` | none (default student) |
+
+The test student is row-less on purpose; registering through it hits the LIVE ₹100 Razorpay fee. For an already-paid student use rjritul21@gmail.com (simulated payment, ref AQ-3P39GK) or simulate another.
+
 ## Infrastructure — still missing
 
-- **No Clerk user has ever signed in**, so no one holds `publicMetadata.role`. `/admin` and `/portal` redirect to `/sign-in` and stop there. Roles are not self-service — an account must exist before a role can be set on it.
+- ~~No Clerk user has ever signed in~~ **Resolved 2026-08-24**: the test admin above holds `publicMetadata.role='admin'`, so `/admin` is reachable for the first time. The organiser's own real account still needs creating + role-setting whenever they want a non-test login.
 
 ## Traps this codebase has already sprung
 
