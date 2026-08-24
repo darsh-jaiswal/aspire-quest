@@ -151,7 +151,9 @@ export async function listApplicantsForOpening(
       year: students.year,
       cgpa: students.cgpa,
       skills: students.skills,
-      hasResume: sql<boolean>`${students.resumeBlobKey} is not null`,
+      // The application's SNAPSHOT resume, not the student's current one —
+      // what this recruiter can actually open is what was applied with.
+      hasResume: sql<boolean>`${jobApplications.resumeId} is not null`,
       appliedAt: jobApplications.appliedAt,
       interested: jobApplications.interested,
       score: jobApplications.score,

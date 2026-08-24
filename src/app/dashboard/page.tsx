@@ -11,6 +11,7 @@ import {
   listApplicationsForStudent,
   type StudentApplication,
 } from "@/db/queries/jobs";
+import { listActiveResumes } from "@/db/queries/resumes";
 import {
   getStudentAccountByClerkId,
   type StudentAccountRow,
@@ -18,6 +19,7 @@ import {
 import { requireStudent } from "@/lib/auth";
 import { FOCUS_AREAS } from "@/lib/content";
 import { studentVisibleStatus } from "@/lib/student-status-display";
+import { ResumeLibrary } from "./resumes/ResumeLibrary";
 
 /**
  * The student's home: the durable version of the one-time success screen.
@@ -53,10 +55,13 @@ export default async function DashboardPage() {
   const user = await currentUser();
   const student = user ? await getStudentAccountByClerkId(user.id) : null;
 
-  const applications =
+  const [applications, resumes] =
     student && student.paymentStatus === "paid"
-      ? await listApplicationsForStudent(student.id)
-      : [];
+      ? await Promise.all([
+          listApplicationsForStudent(student.id),
+          listActiveResumes(student.id),
+        ])
+      : [[], []];
 
   return (
     // ClerkProvider keeps the 60s session JWT silently refreshed while the
@@ -85,7 +90,17 @@ export default async function DashboardPage() {
                 cta="Finish your registration"
               />
             ) : (
-              <PaidDashboard student={student} applications={applications} />
+              <PaidDashboard
+                student={student}
+                applications={applications}
+                resumes={resumes.map((resume) => ({
+                  id: resume.id,
+                  filename: resume.filename,
+                  bytes: resume.bytes,
+                  isPrimary: resume.isPrimary,
+                  createdAt: resume.createdAt.toISOString(),
+                }))}
+              />
             )}
           </div>
         </Container>
@@ -121,9 +136,17 @@ function EmptyState({
 function PaidDashboard({
   student,
   applications,
+  resumes,
 }: {
   student: StudentAccountRow;
   applications: StudentApplication[];
+  resumes: Array<{
+    id: number;
+    filename: string;
+    bytes: number;
+    isPrimary: boolean;
+    createdAt: string;
+  }>;
 }) {
   const shown = studentVisibleStatus(student.status);
 
@@ -210,6 +233,8 @@ function PaidDashboard({
           code.
         </p>
       </section>
+
+      <ResumeLibrary resumes={resumes} />
 
       <section aria-labelledby="dash-applications" className="mt-14">
         <h2

@@ -62,6 +62,13 @@ test.describe("student dashboard", () => {
         now(), 'paid', ${SEEDED.refCode}, now()
       )
     `;
+    // The registration flow would have created the primary library entry;
+    // seed the same shape. Deleting the student cascades this row.
+    await sql`
+      INSERT INTO resumes (student_id, blob_key, filename, bytes, is_primary)
+      SELECT id, ${SEEDED.resumeBlobKey}, ${SEEDED.resumeFilename}, ${SEEDED.resumeBytes}, true
+      FROM students WHERE clerk_user_id = ${clerkUserId}
+    `;
   });
 
   test.afterAll(async () => {
@@ -102,7 +109,11 @@ test.describe("student dashboard", () => {
     await expect(page.getByText(SEEDED.refCode)).toBeVisible();
     await expect(page.getByText("Under review")).toBeVisible();
     await expect(page.getByText(SEEDED.fullName)).toBeVisible();
-    await expect(page.getByText(SEEDED.resumeFilename)).toBeVisible();
+    // The filename shows in both the profile list and the resume library;
+    // scope to the profile region to stay strict-mode clean.
+    await expect(
+      page.getByLabel("Profile on record").getByText(SEEDED.resumeFilename),
+    ).toBeVisible();
 
     // The header stops telling a registered student to register.
     await expect(
@@ -119,6 +130,48 @@ test.describe("student dashboard", () => {
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByText(SEEDED.refCode)).toBeVisible();
+  });
+
+  test("the resume library adds, re-primaries and deletes a CV", async ({
+    page,
+  }) => {
+    await signInAsStudent(page, TEST_PAID_STUDENT_EMAIL);
+    await page.goto("/dashboard");
+
+    // The profile list shows the primary's filename too, so every filename
+    // assertion is scoped to the library section.
+    const library = page.locator("section", { hasText: "Your resumes" });
+
+    // Seeded state: one CV, primary, undeletable.
+    await expect(library.getByText("1/3")).toBeVisible();
+    await expect(library.getByText(SEEDED.resumeFilename)).toBeVisible();
+    await expect(library.getByText("Primary", { exact: true })).toBeVisible();
+    await expect(library.getByRole("button", { name: /^delete$/i })).toHaveCount(0);
+
+    // Add a second CV through the real upload endpoint.
+    await library.getByLabel(/upload another resume/i).setInputFiles({
+      name: "second-cv.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 e2e second cv"),
+    });
+    await library.getByRole("button", { name: /add to library/i }).click();
+    await expect(library.getByText("2/3")).toBeVisible();
+    await expect(library.getByText("second-cv.pdf")).toBeVisible();
+
+    // Promote it; the badge moves.
+    await library.getByRole("button", { name: /make primary/i }).click();
+    await expect(
+      library
+        .locator("li", { hasText: "second-cv.pdf" })
+        .getByText("Primary", { exact: true }),
+    ).toBeVisible();
+
+    // The demoted original can now be deleted — two-step confirm.
+    const originalRow = library.locator("li", { hasText: SEEDED.resumeFilename });
+    await originalRow.getByRole("button", { name: /^delete$/i }).click();
+    await originalRow.getByRole("button", { name: /confirm delete/i }).click();
+    await expect(library.getByText("1/3")).toBeVisible();
+    await expect(library.getByText(SEEDED.resumeFilename)).toHaveCount(0);
   });
 
   test("no horizontal page scroll at small phone (320px)", async ({ page }) => {

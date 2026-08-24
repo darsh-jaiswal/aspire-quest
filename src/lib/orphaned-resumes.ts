@@ -20,6 +20,7 @@ import { del, list } from "@vercel/blob";
 import { isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { jobOpenings, students } from "@/db/schema";
+import { libraryReferencedBlobKeys } from "@/db/queries/resumes";
 
 /** A day. A form session is minutes; this is deliberately far beyond it. */
 const GRACE_MS = 24 * 60 * 60 * 1000;
@@ -82,10 +83,17 @@ async function referencedBlobKeys(): Promise<Set<string>> {
     .from(jobOpenings)
     .where(isNotNull(jobOpenings.jdBlobKey));
 
+  // The resume library: every ACTIVE entry, plus every entry — active or
+  // soft-deleted — that an application snapshotted at apply time. A soft-
+  // deleted entry nothing ever applied with is the one library case that
+  // may (and should) be reaped.
+  const libraryKeys = await libraryReferencedBlobKeys();
+
   return new Set(
     [...resumeRows, ...jdRows]
       .map((row) => row.key)
-      .filter((key): key is string => Boolean(key)),
+      .filter((key): key is string => Boolean(key))
+      .concat(libraryKeys),
   );
 }
 

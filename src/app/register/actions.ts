@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { RegistrationConfirmationEmail } from "@/emails/RegistrationConfirmation";
 import { generateRefCode } from "@/lib/ref-code";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { ensurePrimaryResume } from "@/db/queries/resumes";
 import { createRazorpayOrder, isRazorpayConfigured } from "@/lib/razorpay";
 import { REGISTRATION_FEE } from "@/lib/content";
 import { fieldErrors, studentRegistrationSchema } from "@/lib/validation";
@@ -281,6 +282,21 @@ export async function submitRegistration(
       message: "Something went wrong saving your application. Please try again in a moment.",
       values,
     };
+  }
+
+  // The submitted file becomes (or refreshes) the primary entry in the
+  // student's resume library. Best-effort AFTER the student row is saved:
+  // the students.resume* columns above are the authoritative pointer during
+  // registration, and a failure here is healed by the next submit (or the
+  // backfill), so it must never fail the registration itself.
+  try {
+    await ensurePrimaryResume(studentId, {
+      blobKey: input.resumeBlobKey,
+      filename: input.resumeFilename ?? "resume.pdf",
+      bytes: input.resumeBytes,
+    });
+  } catch (error) {
+    console.error("[register] resume-library sync failed:", error);
   }
 
   // No fee configured (EDITION-style TBA) — registration completes exactly

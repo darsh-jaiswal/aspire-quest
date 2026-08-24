@@ -7,6 +7,7 @@ import {
   getPaidStudentByClerkId,
   getPublicOpening,
 } from "@/db/queries/jobs";
+import { getActiveResume } from "@/db/queries/resumes";
 import { jobApplications } from "@/db/schema";
 import { requireStudent } from "@/lib/auth";
 import { checkEligibility } from "@/lib/openings";
@@ -31,6 +32,7 @@ export type ApplyState =
 
 const targetSchema = z.object({
   openingId: z.coerce.number().int().positive(),
+  resumeId: z.coerce.number().int().positive(),
 });
 
 export async function applyToOpening(
@@ -41,6 +43,7 @@ export async function applyToOpening(
 
   const target = targetSchema.safeParse({
     openingId: formData.get("openingId"),
+    resumeId: formData.get("resumeId"),
   });
   if (!target.success) {
     return { status: "error", message: "Could not read that request." };
@@ -68,10 +71,26 @@ export async function applyToOpening(
     return { status: "error", message: eligibility.reason };
   }
 
+  // The chosen CV must be the caller's own, and still active. A concurrent
+  // soft-delete between this read and the insert is harmless: the snapshot
+  // is allowed to point at a soft-deleted entry — that is what "snapshot"
+  // means — and the orphan sweep spares any blob an application references.
+  const resume = await getActiveResume(student.id, target.data.resumeId);
+  if (!resume) {
+    return {
+      status: "error",
+      message: "That resume is no longer in your library. Pick another one.",
+    };
+  }
+
   try {
     await db
       .insert(jobApplications)
-      .values({ openingId: opening.id, studentId: student.id })
+      .values({
+        openingId: opening.id,
+        studentId: student.id,
+        resumeId: resume.id,
+      })
       .onConflictDoNothing();
   } catch (error) {
     console.error("[jobs] apply failed:", error);

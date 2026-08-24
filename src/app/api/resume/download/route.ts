@@ -1,6 +1,7 @@
 import { get } from "@vercel/blob";
 import { companiesWithAccessToStudent } from "@/db/queries/bundles";
 import { companiesStudentAppliedTo } from "@/db/queries/openings";
+import { getApplicationResume } from "@/db/queries/resumes";
 import { getStudent } from "@/db/queries/students";
 import { canReadStudentResume } from "@/lib/access-policy";
 import { recordAudit } from "@/lib/audit";
@@ -37,8 +38,29 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Bad request", { status: 400 });
   }
 
+  // Optional: scope the read to one application's SNAPSHOT resume — the file
+  // actually submitted to that opening, which may differ from the student's
+  // current primary. Recruiters' applicant lists pass this; bundle and admin
+  // reads stay whole-profile (the primary, via the students mirror).
+  const rawOpeningId = url.searchParams.get("openingId");
+  let openingId: number | null = null;
+  if (rawOpeningId !== null) {
+    openingId = Number(rawOpeningId);
+    if (!Number.isInteger(openingId) || openingId <= 0) {
+      return new Response("Bad request", { status: 400 });
+    }
+  }
+
   const student = await getStudent(studentId);
-  if (!student?.resumeBlobKey) {
+  if (!student) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const snapshot = openingId
+    ? await getApplicationResume(openingId, studentId)
+    : null;
+  const blobKey = snapshot?.blobKey ?? (openingId ? null : student.resumeBlobKey);
+  if (!blobKey) {
     return new Response("Not found", { status: 404 });
   }
 
@@ -59,7 +81,9 @@ export async function GET(request: Request): Promise<Response> {
     actor,
     action: "view_resume",
     studentId,
-    detail: `Resume read · ${student.refCode}`,
+    detail: openingId
+      ? `Resume read · ${student.refCode} · application to opening ${openingId}`
+      : `Resume read · ${student.refCode}`,
   });
 
   try {
@@ -67,7 +91,7 @@ export async function GET(request: Request): Promise<Response> {
     // environment, which makes the SDK prefer OIDC auth — but OIDC isn't
     // enabled for "development" on this project, so pin the RW token, same
     // as the upload route.
-    const result = await get(student.resumeBlobKey, {
+    const result = await get(blobKey, {
       access: "private",
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });

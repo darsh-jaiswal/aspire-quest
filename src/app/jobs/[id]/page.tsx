@@ -12,9 +12,10 @@ import {
   getPublicOpening,
   hasApplied,
 } from "@/db/queries/jobs";
+import { listActiveResumes } from "@/db/queries/resumes";
 import { FOCUS_AREAS } from "@/lib/content";
 import { checkEligibility } from "@/lib/openings";
-import { ApplyForm } from "./ApplyForm";
+import { ApplyForm, type ApplyResumeOption } from "./ApplyForm";
 
 /**
  * One opening, publicly readable. The apply area tells the viewer's truth:
@@ -55,7 +56,7 @@ type Viewer =
   | { kind: "unregistered" }
   | { kind: "applied"; appliedAt: Date }
   | { kind: "ineligible"; reason: string }
-  | { kind: "eligible" };
+  | { kind: "eligible"; resumes: ApplyResumeOption[] };
 
 export default async function OpeningPage({
   params,
@@ -82,9 +83,20 @@ export default async function OpeningPage({
           viewer = { kind: "applied", appliedAt };
         } else {
           const eligibility = checkEligibility(opening, student);
-          viewer = eligibility.eligible
-            ? { kind: "eligible" }
-            : { kind: "ineligible", reason: eligibility.reason };
+          if (!eligibility.eligible) {
+            viewer = { kind: "ineligible", reason: eligibility.reason };
+          } else {
+            // Primary-first ordering makes resumes[0] the picker default.
+            const resumes = await listActiveResumes(student.id);
+            viewer = {
+              kind: "eligible",
+              resumes: resumes.map((resume) => ({
+                id: resume.id,
+                filename: resume.filename,
+                isPrimary: resume.isPrimary,
+              })),
+            };
+          }
         }
       }
     }
@@ -216,7 +228,7 @@ export default async function OpeningPage({
                     <p className="mt-1 text-sm text-slate">{viewer.reason}</p>
                   </div>
                 ) : (
-                  <ApplyForm openingId={opening.id} />
+                  <ApplyForm openingId={opening.id} resumes={viewer.resumes} />
                 )}
               </div>
             </div>

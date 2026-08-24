@@ -203,6 +203,56 @@ export const students = pgTable(
 );
 
 /* -------------------------------------------------------------------------
+ * Resumes — a student's CV library
+ *
+ * Up to three ACTIVE rows per student (enforced in the write, not here —
+ * see src/lib/resume-library.ts), exactly one of them primary. The primary
+ * is what registration submits and what bundles/admin read; applications
+ * snapshot whichever row was chosen at apply time via
+ * jobApplications.resumeId, and that reference is permanent.
+ *
+ * Deletion is ALWAYS soft (`deletedAt`) — one code path, no FK race with a
+ * concurrent apply, and an application's snapshot survives the library
+ * losing the entry. The blob itself is reaped by the orphan sweep only once
+ * nothing references it; the sweep's referenced set unions this table, so
+ * adding blob columns elsewhere means updating orphaned-resumes.ts.
+ *
+ * `students.resume*` stays as a mirror of the primary row so existing
+ * readers (bundles, admin, CSV export) keep working unchanged.
+ * ---------------------------------------------------------------------- */
+
+export const resumes = pgTable(
+  "resumes",
+  {
+    id: serial("id").primaryKey(),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    /** Opaque key into the PRIVATE blob store — same rules as students.resumeBlobKey. */
+    blobKey: text("blob_key").notNull(),
+    filename: varchar("filename", { length: 200 }).notNull(),
+    bytes: integer("bytes").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Soft delete: hidden from the library, kept for application snapshots. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    /**
+     * Unique per student, not globally: legacy seed rows share blob keys
+     * across students, and nothing in the snapshot model needs global
+     * uniqueness — the sweep protects by key regardless of who owns it.
+     * Per-student uniqueness is what keeps re-adding the same file (and the
+     * backfill) idempotent.
+     */
+    uniqueIndex("resumes_student_blob_idx").on(table.studentId, table.blobKey),
+    index("resumes_student_idx").on(table.studentId),
+  ],
+);
+
+/* -------------------------------------------------------------------------
  * Payment orders — one row per Razorpay order attempt
  *
  * Deliberately NOT a column on `students`. A student can abandon a payment
@@ -533,6 +583,14 @@ export const jobApplications = pgTable(
       .notNull()
       .defaultNow(),
 
+    /**
+     * The CV this application was submitted with — a permanent snapshot.
+     * Replacing or soft-deleting the library entry never changes what the
+     * recruiter (or the scorer) sees here. Nullable only for rows that
+     * predate the resumes table; the backfill script sets it.
+     */
+    resumeId: integer("resume_id").references(() => resumes.id),
+
     /** Recruiter-set interest flag, same tri-state as bundle_students. */
     interested: boolean("interested"),
 
@@ -654,6 +712,14 @@ export const jobApplicationsRelations = relations(
 export const studentsRelations = relations(students, ({ many }) => ({
   bundleLinks: many(bundleStudents),
   paymentOrders: many(paymentOrders),
+  resumes: many(resumes),
+}));
+
+export const resumesRelations = relations(resumes, ({ one }) => ({
+  student: one(students, {
+    fields: [resumes.studentId],
+    references: [students.id],
+  }),
 }));
 
 export const paymentOrdersRelations = relations(paymentOrders, ({ one }) => ({
@@ -715,6 +781,8 @@ export const recruiterMembershipsRelations = relations(
 
 export type Student = typeof students.$inferSelect;
 export type NewStudent = typeof students.$inferInsert;
+export type Resume = typeof resumes.$inferSelect;
+export type NewResume = typeof resumes.$inferInsert;
 export type PaymentOrder = typeof paymentOrders.$inferSelect;
 export type NewPaymentOrder = typeof paymentOrders.$inferInsert;
 export type PaymentEvent = typeof paymentEvents.$inferSelect;

@@ -6,9 +6,10 @@ import { get } from "@vercel/blob";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { jobApplications, students } from "@/db/schema";
+import { jobApplications } from "@/db/schema";
 import type { OpeningDetail } from "@/db/queries/openings";
 import { listApplicantsForOpening } from "@/db/queries/openings";
+import { getApplicationResume } from "@/db/queries/resumes";
 import { scoringPromptHash } from "./openings";
 
 /**
@@ -194,16 +195,15 @@ async function scoreOneApplicant(
   studentId: number,
   profile: ApplicantProfile,
 ): Promise<void> {
-  const [student] = await db
-    .select({ resumeBlobKey: students.resumeBlobKey })
-    .from(students)
-    .where(eq(students.id, studentId))
-    .limit(1);
-  if (!student?.resumeBlobKey) throw new Error(`student ${studentId} has no resume`);
+  // The application's snapshot resume — the exact file the student applied
+  // with, regardless of what their library holds today. Scoring anything
+  // else would grade a document the recruiter never received.
+  const snapshot = await getApplicationResume(opening.id, studentId);
+  if (!snapshot) throw new Error(`application ${opening.id}/${studentId} has no resume`);
 
   // Same auth pinning as the resume download route: OIDC is not enabled for
   // development on this project, so use the RW token explicitly.
-  const blob = await get(student.resumeBlobKey, {
+  const blob = await get(snapshot.blobKey, {
     access: "private",
     token: process.env.BLOB_READ_WRITE_TOKEN,
   });

@@ -82,8 +82,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // Never trust the submitted filename as a storage key.
-    const blob = await put(file.name, file, {
+    // Never trust the submitted filename as a storage key. The resumes/
+    // prefix keeps the store auditable next to jd/ — legacy resumes live at
+    // the root, so nothing may ever assume the prefix exists.
+    const blob = await put(`resumes/${file.name}`, file, {
       access: "private",
       addRandomSuffix: true,
       allowOverwrite: false,

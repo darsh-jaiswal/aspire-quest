@@ -138,7 +138,7 @@ export function ApplicantRow({
 
         {hasResume ? (
           <a
-            href={`/api/resume/download?studentId=${studentId}`}
+            href={`/api/resume/download?studentId=${studentId}&openingId=${openingId}`}
             target="_blank"
             rel="noreferrer"
             className="rounded border border-hairline-strong px-3 py-1.5 text-sm font-semibold text-navy transition-colors hover:border-navy"
