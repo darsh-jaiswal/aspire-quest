@@ -30,8 +30,8 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          If you use the corporate partner or alumni referral forms, we
-          collect the contact and company details you submit there.
+          If you use the corporate partner form, we collect the contact and
+          company details you submit there.
         </p>
       </section>
 

@@ -3,7 +3,6 @@ import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  alumniReferrals,
   companies,
   outreachLog,
   problemStatements,
@@ -77,21 +76,6 @@ export async function getOutreach(companyId: number) {
     .from(outreachLog)
     .where(eq(outreachLog.companyId, companyId))
     .orderBy(desc(outreachLog.occurredAt));
-}
-
-export async function listAlumniReferrals() {
-  return db
-    .select()
-    .from(alumniReferrals)
-    .orderBy(desc(alumniReferrals.createdAt));
-}
-
-export async function countPendingReferrals(): Promise<number> {
-  const [row] = await db
-    .select({ value: sql<number>`count(*)::int` })
-    .from(alumniReferrals)
-    .where(sql`${alumniReferrals.promotedCompanyId} is null`);
-  return row?.value ?? 0;
 }
 
 /**

@@ -2,13 +2,19 @@ import Link from "next/link";
 import { PageHeading, StatBlock } from "@/components/admin/Shell";
 import {
   companyStatusCounts,
-  countPendingReferrals,
   listInterestedCompanies,
 } from "@/db/queries/companies";
 import { studentStatusCounts } from "@/db/queries/students";
 import { requireAdmin } from "@/lib/auth";
 import { PHASES } from "@/lib/content";
-import { COMPANY_STATUSES, COMPANY_STATUS_LABEL } from "@/lib/pipeline";
+import { COMPANY_STATUS_LABEL, type CompanyStatus } from "@/lib/pipeline";
+
+/** Only these two stages are worked from the overview — the rest stay
+ * reachable from the pipeline board without cluttering this summary. */
+const OVERVIEW_COMPANY_STATUSES: readonly CompanyStatus[] = [
+  "interested",
+  "onboarded",
+];
 
 export const metadata = { title: "Overview" };
 
@@ -18,13 +24,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminOverviewPage() {
   await requireAdmin();
 
-  const [students, companies, pendingReferrals, interested] =
-    await Promise.all([
-      studentStatusCounts(),
-      companyStatusCounts(),
-      countPendingReferrals(),
-      listInterestedCompanies(),
-    ]);
+  const [students, companies, interested] = await Promise.all([
+    studentStatusCounts(),
+    companyStatusCounts(),
+    listInterestedCompanies(),
+  ]);
 
   const totalStudents = Object.values(students).reduce((a, b) => a + b, 0);
   const totalCompanies = Object.values(companies).reduce((a, b) => a + b, 0);
@@ -37,7 +41,7 @@ export default async function AdminOverviewPage() {
         description="Where the two pipelines stand. Corporate onboarding closes before student screening opens — if the committed count is low, that is the number to work on first."
       />
 
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         <StatBlock
           label="Registrations"
           value={totalStudents}
@@ -52,11 +56,6 @@ export default async function AdminOverviewPage() {
           label="Selected"
           value={students.selected}
           note="Offers made"
-        />
-        <StatBlock
-          label="Referrals to action"
-          value={pendingReferrals}
-          note="Not yet promoted to a lead"
         />
       </div>
 
@@ -140,7 +139,7 @@ export default async function AdminOverviewPage() {
             Corporate pipeline
           </h2>
           <dl className="mt-4 border-t border-hairline-strong">
-            {COMPANY_STATUSES.map((status) => (
+            {OVERVIEW_COMPANY_STATUSES.map((status) => (
               <div
                 key={status}
                 className="flex items-baseline justify-between gap-4 border-b border-hairline py-3"

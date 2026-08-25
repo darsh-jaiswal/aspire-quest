@@ -5,12 +5,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import {
-  alumniReferrals,
-  companies,
-  outreachLog,
-  recruiterMemberships,
-} from "@/db/schema";
+import { companies, outreachLog, recruiterMemberships } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { parseCsvRecords, pick } from "@/lib/csv";
 
@@ -102,75 +97,6 @@ export async function logOutreach(
   } catch (error) {
     console.error("[admin/companies] outreach log failed:", error);
     return { status: "error", message: "Could not save that note." };
-  }
-}
-
-/** Turn an alumni referral into a company lead. */
-export async function promoteReferral(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireAdmin();
-
-  const referralId = z.coerce
-    .number()
-    .int()
-    .positive()
-    .safeParse(formData.get("referralId"));
-
-  if (!referralId.success) {
-    return { status: "error", message: "Could not read that referral." };
-  }
-
-  try {
-    const [referral] = await db
-      .select()
-      .from(alumniReferrals)
-      .where(eq(alumniReferrals.id, referralId.data))
-      .limit(1);
-
-    if (!referral) {
-      return { status: "error", message: "That referral no longer exists." };
-    }
-    if (referral.promotedCompanyId) {
-      return { status: "error", message: "That referral is already a lead." };
-    }
-
-    const [company] = await db
-      .insert(companies)
-      .values({
-        name: referral.company ?? referral.alumName,
-        status: "lead",
-        source: "alumni_referral",
-        notes: [
-          `Referred by ${referral.alumName}`,
-          referral.batch ? `Batch ${referral.batch}` : null,
-          referral.role ? `Role: ${referral.role}` : null,
-          referral.notes,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      })
-      .returning({ id: companies.id });
-
-    if (company) {
-      await db
-        .update(alumniReferrals)
-        .set({ promotedCompanyId: company.id })
-        .where(eq(alumniReferrals.id, referral.id));
-    }
-
-    revalidatePath("/admin/alumni");
-    revalidatePath("/admin/companies");
-    revalidatePath("/admin");
-
-    return {
-      status: "success",
-      message: `${referral.company ?? referral.alumName} added as a lead.`,
-    };
-  } catch (error) {
-    console.error("[admin/companies] promote failed:", error);
-    return { status: "error", message: "Could not promote that referral." };
   }
 }
 

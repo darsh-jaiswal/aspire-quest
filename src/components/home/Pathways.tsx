@@ -19,14 +19,6 @@ const PATHWAYS = [
     cta: "Become a partner",
     variant: "primary" as const,
   },
-  {
-    audience: "Alumni",
-    heading: "Open a door at your company",
-    body: "A named referral from an alum is the single most effective way a company enters the pipeline. It takes about two minutes.",
-    href: "/alumni",
-    cta: "Refer your company",
-    variant: "outline" as const,
-  },
 ];
 
 export function Pathways() {
@@ -35,11 +27,11 @@ export function Pathways() {
       <div className="max-w-[44ch]">
         <Eyebrow>Take part</Eyebrow>
         <h2 id="pathways-heading" className="mt-5 text-h1 font-semibold">
-          Three ways in.
+          Two ways in.
         </h2>
       </div>
 
-      <div className="mt-14 grid gap-px overflow-hidden rounded border border-hairline bg-hairline lg:grid-cols-3">
+      <div className="mt-14 grid gap-px overflow-hidden rounded border border-hairline bg-hairline md:grid-cols-2">
         {PATHWAYS.map((path) => (
           <article
             key={path.audience}

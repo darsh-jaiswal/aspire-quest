@@ -23,7 +23,6 @@ const SECTIONS = [
   { href: "/admin", label: "Overview", exact: true },
   { href: "/admin/students", label: "Students" },
   { href: "/admin/companies", label: "Companies" },
-  { href: "/admin/alumni", label: "Alumni" },
   { href: "/admin/audit", label: "Audit" },
 ];
 

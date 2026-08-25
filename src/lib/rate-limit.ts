@@ -42,7 +42,6 @@ function makeLimiter(tokens: number, window: `${number} ${"s" | "m" | "h"}`) {
 const LIMITERS = {
   register: makeLimiter(5, "10 m"),
   partner: makeLimiter(3, "10 m"),
-  alumni: makeLimiter(3, "10 m"),
   upload: makeLimiter(8, "10 m"),
   /**
    * Second gate on resume uploads, keyed by the signed-in user rather than

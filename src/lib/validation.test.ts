@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { REGISTRATION } from "./content";
 import {
-  alumniReferralSchema,
   fieldErrors,
   jobOpeningSchema,
   partnerSchema,
@@ -260,33 +259,6 @@ describe("jobOpeningSchema", () => {
   test("no branches selected means all branches eligible", () => {
     const result = jobOpeningSchema.parse(valid);
     expect(result.eligibleBranches).toEqual([]);
-  });
-});
-
-describe("alumniReferralSchema", () => {
-  test("accepts a minimal referral", () => {
-    const result = alumniReferralSchema.safeParse({
-      alumName: "Neha Patil",
-      company: "Oracle",
-      email: "",
-      batch: "",
-      branch: "",
-      role: "",
-      linkedin: "",
-      hiringInterest: false,
-      notes: "",
-      companyFax: "",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test("requires a company", () => {
-    const result = alumniReferralSchema.safeParse({
-      alumName: "Neha Patil",
-      company: "",
-      hiringInterest: false,
-    });
-    expect(result.success).toBe(false);
   });
 });
 

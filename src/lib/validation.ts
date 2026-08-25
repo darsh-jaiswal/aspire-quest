@@ -204,29 +204,6 @@ export const partnerSchema = z.object({
 export type PartnerInput = z.infer<typeof partnerSchema>;
 
 /* -------------------------------------------------------------------------
- * Alumni referral
- * ---------------------------------------------------------------------- */
-
-export const alumniReferralSchema = z.object({
-  alumName: fullName,
-  email: email.optional().or(z.literal("")),
-  batch: z.string().trim().max(16).optional().or(z.literal("")),
-  branch: z.string().trim().max(16).optional().or(z.literal("")),
-  company: z
-    .string()
-    .trim()
-    .min(2, "Which company should we approach?")
-    .max(160),
-  role: z.string().trim().max(120).optional().or(z.literal("")),
-  linkedin: z.string().trim().max(200).optional().or(z.literal("")),
-  hiringInterest: z.boolean().default(false),
-  notes: z.string().trim().max(2000).optional().or(z.literal("")),
-  companyFax: honeypot,
-});
-
-export type AlumniReferralInput = z.infer<typeof alumniReferralSchema>;
-
-/* -------------------------------------------------------------------------
  * Job opening — recruiter-authored, validated in the portal Server Action
  * ---------------------------------------------------------------------- */
 

@@ -24,6 +24,10 @@ type Company = {
 
 const INITIAL: ActionState = { status: "idle" };
 
+/** Only these two stages get a column on the board; the rest stay reachable
+ * via the per-card move-to select without cluttering the layout. */
+const BOARD_STATUSES: readonly CompanyStatus[] = ["interested", "onboarded"];
+
 const TONE: Record<CompanyStatus, "muted" | "neutral" | "active" | "positive"> =
   {
     lead: "muted",
@@ -54,8 +58,8 @@ export function PipelineBoard({ companies }: { companies: Company[] }) {
 
       {/* Columns, but built from rules rather than draggable cards — the stage
           is changed with a select, which keeps it keyboard-operable. */}
-      <div className="grid gap-px overflow-hidden rounded border border-hairline bg-hairline lg:grid-cols-5">
-        {COMPANY_STATUSES.map((status) => {
+      <div className="grid gap-px overflow-hidden rounded border border-hairline bg-hairline md:grid-cols-2">
+        {BOARD_STATUSES.map((status) => {
           const inStage = companies.filter((c) => c.status === status);
           return (
             <section
@@ -151,7 +155,7 @@ export function PipelineBoard({ companies }: { companies: Company[] }) {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {COMPANY_STATUSES.map((status) => (
+        {BOARD_STATUSES.map((status) => (
           <Pill key={status} tone={TONE[status]}>
             {COMPANY_STATUS_LABEL[status]}
           </Pill>
