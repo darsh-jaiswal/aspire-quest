@@ -37,10 +37,11 @@ export function Proof() {
                 <StarBorder
                   key={placement.name}
                   as="li"
-                  color="#f2f2ef"
+                  color="#7C3AED"
                   speed="4s"
+                  thickness={5}
                   className="rounded-2xl"
-                  innerClassName="rounded-2xl border border-hairline bg-surface p-7"
+                  innerClassName="rounded-[11px] border border-hairline bg-surface p-7"
                 >
                   <p className="text-h3 font-semibold text-navy">
                     {placement.name}
@@ -160,13 +161,20 @@ export function Proof() {
 
             <div className="mt-10">
               <Eyebrow>Recruiters on campus</Eyebrow>
-              <ul className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+              {/* Real trademarked logos, used only to identify each company
+                  as a recruiting partner — flattened to a single tone via
+                  brightness-0 + invert (works regardless of each logo's
+                  original colors) so a decorative "trusted by" row doesn't
+                  break the site's black-and-white system the way ten
+                  differently-colored brand marks would. */}
+              <ul className="mt-5 flex flex-wrap items-center gap-x-10 gap-y-6">
                 {RECRUITERS.map((recruiter) => (
-                  <li
-                    key={recruiter}
-                    className="text-sm font-semibold tracking-tight text-slate"
-                  >
-                    {recruiter}
+                  <li key={recruiter.name} className="flex items-center">
+                    <img
+                      src={recruiter.logo}
+                      alt={recruiter.name}
+                      className="h-8 w-auto max-w-[120px] object-contain brightness-0 invert opacity-70 transition-opacity hover:opacity-100"
+                    />
                   </li>
                 ))}
               </ul>

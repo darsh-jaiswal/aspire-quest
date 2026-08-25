@@ -143,18 +143,25 @@ export const PLACEMENT_STATS: readonly PlacementStat[] = [
   { programme: "MBA.Tech", year: "2024–25", highest: 27.0, average: 11.5 },
 ];
 
+export type Recruiter = {
+  name: string;
+  /** Path under /public. Logos are third-party trademarks, used only to
+   * identify each company as a recruiting partner. */
+  logo: string;
+};
+
 /** Publicly listed recruiters at NMIMS Shirpur. */
-export const RECRUITERS: readonly string[] = [
-  "Deloitte",
-  "Oracle",
-  "L&T",
-  "KPMG",
-  "Samsung",
-  "Godrej & Boyce",
-  "Wipro",
-  "TCS",
-  "Tech Mahindra",
-  "Accenture",
+export const RECRUITERS: readonly Recruiter[] = [
+  { name: "Deloitte", logo: "/recruiters/deloitte.svg" },
+  { name: "Oracle", logo: "/recruiters/oracle.svg" },
+  { name: "L&T", logo: "/recruiters/lt.svg" },
+  { name: "KPMG", logo: "/recruiters/kpmg.svg" },
+  { name: "Samsung", logo: "/recruiters/samsung.svg" },
+  { name: "Godrej & Boyce", logo: "/recruiters/godrej-boyce.svg" },
+  { name: "Wipro", logo: "/recruiters/wipro.svg" },
+  { name: "TCS", logo: "/recruiters/tcs.svg" },
+  { name: "Tech Mahindra", logo: "/recruiters/tech-mahindra.svg" },
+  { name: "Accenture", logo: "/recruiters/accenture.svg" },
 ];
 
 /* -------------------------------------------------------------------------
