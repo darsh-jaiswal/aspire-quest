@@ -21,8 +21,8 @@ import { RecruiterCta } from "./RecruiterCta";
  * audience links and the badge doesn't render — the public site's
  * survive-without-environment guarantee holds.
  *
- * `dark` threads through to every child: which of these renders the borrowed
- * violet-pink header identity vs the site's normal ink-ramp buttons.
+ * `dark` threads through to every child: which of these renders the header's
+ * glass buttons vs the site's normal ink-ramp buttons.
  */
 const CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
@@ -41,7 +41,7 @@ export function HeaderAccount({ dark = false }: { dark?: boolean }) {
         </div>
         <ButtonLink
           href="/register"
-          variant={dark ? "gradient-violet" : "gradient"}
+          variant={dark ? "glass-invert" : "gradient"}
           className="px-4 py-2.5"
         >
           For students

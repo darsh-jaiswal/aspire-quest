@@ -20,10 +20,9 @@ import { HeaderAccount } from "./HeaderAccount";
  * The dark branch is fixed, translucent, and detaches into a floating
  * rounded-rectangle bar past a small scroll threshold — matching React
  * Bits' navbar treatment rather than the site's usual monochrome-in-flow
- * chrome (see Button.tsx's `gradient-violet` for the same deliberate,
- * scoped departure). Its fill is `bg-ink`, a fixed pole rather than a
- * flippable token, since this branch only ever renders on pages already
- * wrapped in the dark scope.
+ * chrome. Its fill is `bg-ink`, a fixed pole rather than a flippable token,
+ * since this branch only ever renders on pages already wrapped in the dark
+ * scope.
  */
 export function SiteHeader({
   overlay = false,
@@ -93,10 +92,10 @@ export function SiteHeader({
         }`}
       >
         <header
-          className={`w-full border backdrop-blur-xl transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`w-full border backdrop-blur-2xl transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             scrolled
-              ? "max-w-5xl rounded-2xl border-white/10 bg-ink/70 shadow-lg shadow-black/40"
-              : "max-w-none rounded-none border-x-0 border-t-0 border-white/10 bg-ink/60"
+              ? "max-w-5xl rounded-2xl border-white/8 bg-ink/45"
+              : "max-w-none rounded-none border-x-0 border-t-0 border-white/8 bg-ink/35"
           }`}
         >
           <Container

@@ -1,3 +1,4 @@
+import StarBorder from "@/components/StarBorder";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow, Section } from "@/components/ui/Section";
 import { PLACEMENTS, PLACEMENT_STATS, RECRUITERS } from "@/lib/content";
@@ -31,9 +32,16 @@ export function Proof() {
               </p>
             </div>
 
-            <ul className="grid gap-px overflow-hidden rounded border border-hairline bg-hairline sm:grid-cols-2 lg:col-span-8">
+            <ul className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
               {PLACEMENTS.map((placement) => (
-                <li key={placement.name} className="bg-surface p-7">
+                <StarBorder
+                  key={placement.name}
+                  as="li"
+                  color="#f2f2ef"
+                  speed="4s"
+                  className="rounded-2xl"
+                  innerClassName="rounded-2xl border border-hairline bg-surface p-7"
+                >
                   <p className="text-h3 font-semibold text-navy">
                     {placement.name}
                   </p>
@@ -61,7 +69,7 @@ export function Proof() {
                       </dd>
                     </div>
                   </dl>
-                </li>
+                </StarBorder>
               ))}
             </ul>
           </div>

@@ -261,7 +261,15 @@ export default function ColorBends({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [bandWidth, frequency, intensity, iterations, mouseInfluence, noise, parallax, scale, speed, transparent, warpStrength]);
+    // Mount-only: every value read above is an initial uniform value, and
+    // the effect below keeps every one of them in sync afterward by
+    // mutating the existing material/uniforms in place — rebuilding the
+    // whole WebGL context (renderer, geometry, material) on every value
+    // change would tear it down mid-drag for a live-adjustable control
+    // (see HeroDemoPanel's draggable numbers), causing a visible flicker
+    // on every pixel of drag movement instead of a smooth update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const material = materialRef.current;

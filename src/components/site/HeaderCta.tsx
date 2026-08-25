@@ -25,7 +25,7 @@ export function HeaderCta({ dark = false }: { dark?: boolean }) {
   return (
     <ButtonLink
       href={console?.href ?? (signedIn ? "/dashboard" : "/register")}
-      variant={dark ? "gradient-violet" : "gradient"}
+      variant={dark ? "glass-invert" : "gradient"}
       className="px-4 py-2.5"
     >
       {console?.label ?? (signedIn ? "My application" : "For students")}

@@ -1,20 +1,61 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
 import ColorBends from "@/components/ColorBends";
 import DotField from "@/components/DotField";
+import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { EDITION, SITE } from "@/lib/content";
+import {
+  DEFAULT_WAVE_PARAMS,
+  DEFAULT_WAVE_THEME,
+  HeroDemoPanel,
+  WAVE_THEMES,
+  type WaveParams,
+  type WaveThemeKey,
+} from "./HeroDemoPanel";
 
 /**
  * The masthead — the first screen. Deliberately holds no <h1>; the page's
  * one first-level heading belongs to the section below, which carries the
- * actual proposition ("The industry interviews here.").
+ * actual proposition ("The industry interviews here."). The large "Aspire
+ * Quest" line below is a styled wordmark (a <p>, not a heading element), so
+ * it doesn't compete with that h1.
  */
 export function Masthead() {
+  const [waveTheme, setWaveTheme] = useState<WaveThemeKey>(DEFAULT_WAVE_THEME);
+  const [params, setParams] = useState<WaveParams>(DEFAULT_WAVE_PARAMS);
+  const activeColor = WAVE_THEMES[waveTheme].color;
+
+  const handleParamChange = (key: keyof WaveParams, value: number) => {
+    setParams((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleReset = () => {
+    setWaveTheme(DEFAULT_WAVE_THEME);
+    setParams(DEFAULT_WAVE_PARAMS);
+  };
+
   return (
     <section
       aria-label={`${SITE.parentEvent} — ${SITE.name}`}
-      className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-ink pb-8 text-paper [--color-focus:var(--color-paper)] sm:pb-12"
+      className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-ink pb-8 pt-28 text-paper [--color-focus:var(--color-paper)] sm:pb-12"
     >
-      <div aria-hidden="true" className="absolute inset-0">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{
+          /* Fades the whole background layer (dots + wave) out over the
+             bottom ~45% of the section, so it dissolves into the plain
+             `bg-surface` of the next section instead of cutting off in a
+             hard line at the section boundary — both resolve to the same
+             #0d0d0d ink in the noir scope, so the reveal is seamless. */
+          maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 98%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 0%, black 55%, transparent 98%)",
+        }}
+      >
         <DotField
           dotRadius={1.5}
           dotSpacing={14}
@@ -26,49 +67,87 @@ export function Masthead() {
           sparkle={false}
           waveAmplitude={0}
         />
-        {/* Fades the glow band out toward the top ~25%, so it doesn't fight
-            the header. Values are tuned for this wide banner — the pasted
-            reference values (from React Bits' near-square preview panel)
-            rendered as a near-invisible haze here; the shader stretches its
-            pattern by the container's aspect ratio, and ours is far wider. */}
+        {/* Fades the glow band out toward the top, so it doesn't fight the
+            header — `fadeTop` (visitor-adjustable in the demo panel) sets
+            where that fade starts. It isn't a real ColorBends prop; React
+            Bits' own demo uses it to mean the same thing, so the panel
+            names it that even though ours is a CSS mask, not a shader
+            uniform. */}
         <div
           className="absolute inset-0"
           style={{
-            maskImage: "linear-gradient(to top, black 75%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to top, black 75%, transparent 100%)",
+            maskImage: `linear-gradient(to top, black ${params.fadeTop * 100}%, transparent 100%)`,
+            WebkitMaskImage: `linear-gradient(to top, black ${params.fadeTop * 100}%, transparent 100%)`,
           }}
         >
           <ColorBends
-            colors={["#A855F7"]}
-            speed={0.2}
-            frequency={1.0}
-            noise={0.15}
-            bandWidth={0.4}
-            rotation={90}
-            iterations={1}
-            intensity={2.2}
+            colors={[activeColor]}
+            speed={params.speed}
+            frequency={params.frequency}
+            noise={params.noise}
+            bandWidth={params.bandWidth}
+            rotation={params.rotation}
+            iterations={params.iterations}
+            intensity={params.intensity}
             scale={2}
           />
         </div>
       </div>
 
       <Container className="relative">
-        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-t border-paper/20 pt-5">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <p className="flex items-center gap-2.5 text-eyebrow font-semibold uppercase">
-              <span
-                aria-hidden="true"
-                className="size-1.5 rounded-full bg-paper"
-              />
-              {EDITION.label}
-              <span className="font-normal text-paper/45">
-                · {EDITION.dateLabel}
-              </span>
+        <div className="flex flex-col gap-10 border-t border-paper/20 pt-6 lg:flex-row lg:items-end lg:justify-between lg:gap-14">
+          <div className="flex max-w-xl flex-col gap-6">
+            <p className="text-display font-semibold text-paper">
+              {SITE.name}
             </p>
 
-            <p className="text-eyebrow uppercase text-paper/45">
-              Scroll for the detail
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Custom, not ButtonLink: this is the one CTA whose fill
+                  tracks the visitor-selected wave color (mirroring React
+                  Bits' own "Browse Components" button), so it can't use a
+                  fixed variant — same base sizing as Button.tsx's BASE. */}
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center gap-2 rounded border border-transparent px-5 py-3 text-sm font-semibold tracking-tight text-white transition-all duration-300 hover:brightness-110 active:translate-y-px"
+                style={{
+                  backgroundColor: activeColor,
+                  boxShadow: `0 0 24px -6px ${activeColor}99`,
+                }}
+              >
+                For Students
+              </Link>
+
+              <ButtonLink href="/partners" variant="outline-invert">
+                For Recruiters
+              </ButtonLink>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <p className="flex items-center gap-2.5 text-eyebrow font-semibold uppercase">
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 rounded-full bg-paper"
+                />
+                {EDITION.label}
+                <span className="font-normal text-paper/45">
+                  · {EDITION.dateLabel}
+                </span>
+              </p>
+
+              <p className="text-eyebrow uppercase text-paper/45">
+                Scroll for the detail
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full lg:max-w-sm">
+            <HeroDemoPanel
+              theme={waveTheme}
+              onSelect={setWaveTheme}
+              params={params}
+              onParamChange={handleParamChange}
+              onReset={handleReset}
+            />
           </div>
         </div>
       </Container>
