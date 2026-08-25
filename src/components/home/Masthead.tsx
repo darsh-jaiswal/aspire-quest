@@ -1,24 +1,55 @@
-import Aurora from "@/components/Aurora";
+import ColorBends from "@/components/ColorBends";
+import DotField from "@/components/DotField";
 import { Container } from "@/components/ui/Container";
-import { MouseQuadrantTracker } from "@/components/ui/MouseQuadrantTracker";
 import { EDITION, SITE } from "@/lib/content";
 
 /**
- * The masthead — the first screen.
- *
- * Deliberately NOT an <h1>. The page's one first-level heading belongs to the
- * section below, which carries the actual proposition ("The industry
- * interviews here."). A decorative wordmark outranking it would be a
- * regression in document structure, not a design flourish.
+ * The masthead — the first screen. Deliberately holds no <h1>; the page's
+ * one first-level heading belongs to the section below, which carries the
+ * actual proposition ("The industry interviews here.").
  */
 export function Masthead() {
   return (
     <section
       aria-label={`${SITE.parentEvent} — ${SITE.name}`}
-      className="relative flex min-h-[28rem] flex-col justify-end overflow-hidden bg-ink pb-8 text-paper [--color-focus:var(--color-paper)] sm:min-h-[34rem] sm:pb-12"
+      className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-ink pb-8 text-paper [--color-focus:var(--color-paper)] sm:pb-12"
     >
       <div aria-hidden="true" className="absolute inset-0">
-        <Aurora />
+        <DotField
+          dotRadius={1.5}
+          dotSpacing={14}
+          cursorRadius={500}
+          cursorForce={0.1}
+          bulgeOnly
+          bulgeStrength={67}
+          glowRadius={160}
+          sparkle={false}
+          waveAmplitude={0}
+        />
+        {/* Fades the glow band out toward the top ~25%, so it doesn't fight
+            the header. Values are tuned for this wide banner — the pasted
+            reference values (from React Bits' near-square preview panel)
+            rendered as a near-invisible haze here; the shader stretches its
+            pattern by the container's aspect ratio, and ours is far wider. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            maskImage: "linear-gradient(to top, black 75%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to top, black 75%, transparent 100%)",
+          }}
+        >
+          <ColorBends
+            colors={["#A855F7"]}
+            speed={0.2}
+            frequency={1.0}
+            noise={0.15}
+            bandWidth={0.4}
+            rotation={90}
+            iterations={1}
+            intensity={2.2}
+            scale={2}
+          />
+        </div>
       </div>
 
       <Container className="relative">
@@ -41,13 +72,6 @@ export function Masthead() {
           </div>
         </div>
       </Container>
-
-      <MouseQuadrantTracker
-        text="Ambiora"
-        hue={90}
-        style={{ fontSize: "clamp(3rem, 15vw, 12.5rem)", lineHeight: 0.78 }}
-        className="relative mt-6 flex select-none justify-center font-[family-name:var(--font-anton)] uppercase tracking-[-0.015em] text-paper sm:mt-9"
-      />
     </section>
   );
 }
