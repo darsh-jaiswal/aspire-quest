@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { About } from "@/components/home/About";
 import { Faq } from "@/components/home/Faq";
 import { Masthead } from "@/components/home/Masthead";
@@ -10,6 +11,13 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 
 /** Fully static — the public site is CDN-served and costs no compute. */
 export const dynamic = "force-static";
+
+/** Overrides the root layout's `light` for this one dark-scoped page, so
+ * native browser UI (scrollbar, form controls) renders dark to match the
+ * `.aq-noir` palette instead of the sitewide light default. */
+export const viewport: Viewport = {
+  colorScheme: "dark",
+};
 
 /**
  * The home page opted into the dark "noir" scope by explicit request — see

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Container } from "@/components/ui/Container";
@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   title: "Recruit from MPSTME",
   description:
     "Partner with Aspire Quest to interview and hire MPSTME Shirpur students on campus during Ambiora.",
+};
+
+/** Overrides the root layout's `light` for this dark-scoped page — see the
+ * same note on the home page's viewport export. */
+export const viewport: Viewport = {
+  colorScheme: "dark",
 };
 
 export default function PartnersPage() {

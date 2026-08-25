@@ -359,8 +359,15 @@ time,
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
+  /* --color-muted(-foreground) deliberately NOT re-exported here: this
+     project already owns --color-muted (see the top @theme block) as a
+     muted TEXT color (#6e6e69 light / #8a8a85 noir), used throughout the
+     hand-written UI via `text-muted`. Shadcn's own --muted is an unrelated
+     near-white token meant for subtle BACKGROUNDS (bg-muted). Because
+     @theme blocks merge by name with last-write-wins, this line used to
+     silently override every `text-muted` on the site to near-invisible —
+     nothing in the codebase uses shadcn's own muted/muted-foreground
+     naming, so leaving this unmapped is a pure fix, not a tradeoff. */
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);

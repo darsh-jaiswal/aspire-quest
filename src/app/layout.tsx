@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Anton, Inter, Geist } from "next/font/google";
 import { DESCRIPTION, SITE, TAGLINE } from "@/lib/content";
 import "./globals.css";
@@ -49,6 +49,22 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },
+};
+
+/**
+ * Every palette here — the light default AND the `.aq-noir` dark scope — is
+ * hand-painted CSS, never `prefers-color-scheme`. Without this, a browser
+ * or OS "force dark" feature (on by default on many Android/Chrome builds
+ * for pages that don't declare a scheme) tries to auto-repaint the page,
+ * fighting the custom palette — text colors compute wrong (near-invisible
+ * on their own background) while other elements render fine, exactly the
+ * "half the page went unreadable" bug this fixes. `light` tells the
+ * browser this page is fully painted for light presentation and to leave
+ * it alone, including on the noir-scoped pages, which opt into dark via an
+ * explicit class rather than this signal.
+ */
+export const viewport: Viewport = {
+  colorScheme: "light",
 };
 
 export default function RootLayout({

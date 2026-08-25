@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { redirect } from "next/navigation";
 import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   title: "Student registration",
   description:
     "Register for Aspire Quest at MPSTME Shirpur. Sign in with Google or Microsoft, then submit one form with a PDF resume for a reference code on screen.",
+};
+
+/** Overrides the root layout's `light` for this dark-scoped page — see the
+ * same note on the home page's viewport export. */
+export const viewport: Viewport = {
+  colorScheme: "dark",
 };
 
 const CHECKLIST = [
