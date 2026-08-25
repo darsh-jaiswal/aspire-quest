@@ -7,6 +7,7 @@ import { MAX_ACTIVE_RESUMES } from "@/lib/resume-library";
 import {
   addResumeAction,
   deleteResumeAction,
+  replaceResumeAction,
   setPrimaryResumeAction,
   type LibraryActionState,
 } from "./actions";
@@ -36,6 +37,33 @@ type Upload =
   | { phase: "uploading"; name: string }
   | { phase: "done"; key: string; name: string; bytes: number }
   | { phase: "error"; message: string };
+
+/** Shared by AddResume and ReplaceResume — same endpoint, same states. */
+function useResumeUpload() {
+  const [upload, setUpload] = useState<Upload>({ phase: "idle" });
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUpload({ phase: "uploading", name: file.name });
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const response = await fetch("/api/resume/upload", { method: "POST", body });
+      const parsed = (await response.json()) as { key?: string; error?: string };
+      if (!response.ok || !parsed.key) {
+        setUpload({ phase: "error", message: parsed.error ?? "Upload failed." });
+        return;
+      }
+      setUpload({ phase: "done", key: parsed.key, name: file.name, bytes: file.size });
+    } catch {
+      setUpload({ phase: "error", message: "Upload failed. Please try again." });
+    }
+  }
+
+  return { upload, setUpload, handleFileChange };
+}
 
 export function ResumeLibrary({
   resumes,
@@ -68,7 +96,7 @@ export function ResumeLibrary({
 
       <ul className="mt-4 border-t border-hairline-strong">
         {resumes.map((resume) => (
-          <ResumeEntry key={resume.id} resume={resume} soleEntry={resumes.length === 1} />
+          <ResumeEntry key={resume.id} resume={resume} />
         ))}
       </ul>
 
@@ -85,12 +113,10 @@ export function ResumeLibrary({
 
 function ResumeEntry({
   resume,
-  soleEntry,
 }: {
   resume: Pick<ResumeRow, "id" | "filename" | "bytes" | "isPrimary"> & {
     createdAt: string;
   };
-  soleEntry: boolean;
 }) {
   const [primaryState, primaryAction, primaryPending] = useActionState(
     setPrimaryResumeAction,
@@ -155,10 +181,8 @@ function ResumeEntry({
               </button>
             )}
           </span>
-        ) : soleEntry ? null : (
-          <span className="text-xs text-muted">
-            Set another as primary to delete this one
-          </span>
+        ) : (
+          <ReplaceResume resume={resume} />
         )}
       </div>
       {error ? (
@@ -170,9 +194,83 @@ function ResumeEntry({
   );
 }
 
+/**
+ * Lets the student swap the primary resume for a different file in one
+ * step, instead of the add → make primary → delete dance the individual
+ * actions would otherwise require — the actual gap this closes: with a
+ * single resume in the library, Delete is unreachable (the primary can't
+ * be deleted with nothing to fall back to) and "Upload another" only grows
+ * the library, so there was previously no way to just swap it out.
+ */
+function ReplaceResume({
+  resume,
+}: {
+  resume: Pick<ResumeRow, "id" | "filename" | "bytes" | "isPrimary">;
+}) {
+  const [state, formAction, pending] = useActionState(replaceResumeAction, INITIAL);
+  const { upload, setUpload, handleFileChange } = useResumeUpload();
+
+  const [handled, setHandled] = useState<LibraryActionState>(state);
+  if (state !== handled) {
+    setHandled(state);
+    if (state.status === "success") setUpload({ phase: "idle" });
+  }
+
+  if (upload.phase === "done") {
+    return (
+      <form action={formAction} className="flex flex-wrap items-baseline gap-3">
+        <input type="hidden" name="resumeId" value={resume.id} />
+        <input type="hidden" name="resumeBlobKey" value={upload.key} />
+        <input type="hidden" name="resumeFilename" value={upload.name} />
+        <input type="hidden" name="resumeBytes" value={upload.bytes} />
+        <span className="min-w-0 text-sm text-slate [overflow-wrap:anywhere]">
+          {upload.name} · {formatBytes(upload.bytes)}
+        </span>
+        <button
+          type="submit"
+          disabled={pending}
+          className="text-sm font-semibold text-navy underline-offset-4 hover:underline disabled:opacity-50"
+        >
+          {pending ? "Replacing…" : `Replace ${resume.filename}`}
+        </button>
+        <button
+          type="button"
+          onClick={() => setUpload({ phase: "idle" })}
+          className="text-sm font-semibold text-muted underline-offset-4 hover:text-slate hover:underline"
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <span>
+      <label className="inline-block cursor-pointer text-sm font-semibold text-slate underline-offset-4 hover:text-navy hover:underline">
+        {upload.phase === "uploading" ? `Uploading ${upload.name}…` : "Replace"}
+        <input
+          type="file"
+          accept="application/pdf"
+          onChange={handleFileChange}
+          onClick={(event) => {
+            event.currentTarget.value = "";
+          }}
+          disabled={upload.phase === "uploading"}
+          className="sr-only"
+        />
+      </label>
+      {upload.phase === "error" ? (
+        <p role="alert" className="mt-1 text-sm font-semibold text-critical">
+          {upload.message}
+        </p>
+      ) : null}
+    </span>
+  );
+}
+
 function AddResume() {
   const [state, formAction, pending] = useActionState(addResumeAction, INITIAL);
-  const [upload, setUpload] = useState<Upload>({ phase: "idle" });
+  const { upload, setUpload, handleFileChange } = useResumeUpload();
 
   // Adjust-state-during-render (guarded): once an add succeeds, the panel
   // resets for the next file. No effect needed — the guard is the state
@@ -181,26 +279,6 @@ function AddResume() {
   if (state !== handled) {
     setHandled(state);
     if (state.status === "success") setUpload({ phase: "idle" });
-  }
-
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUpload({ phase: "uploading", name: file.name });
-    try {
-      const body = new FormData();
-      body.set("file", file);
-      const response = await fetch("/api/resume/upload", { method: "POST", body });
-      const parsed = (await response.json()) as { key?: string; error?: string };
-      if (!response.ok || !parsed.key) {
-        setUpload({ phase: "error", message: parsed.error ?? "Upload failed." });
-        return;
-      }
-      setUpload({ phase: "done", key: parsed.key, name: file.name, bytes: file.size });
-    } catch {
-      setUpload({ phase: "error", message: "Upload failed. Please try again." });
-    }
   }
 
   return (

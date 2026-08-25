@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getPaidStudentByClerkId } from "@/db/queries/jobs";
 import {
   addResume,
+  replaceResume,
   setPrimaryResume,
   softDeleteResume,
 } from "@/db/queries/resumes";
@@ -81,6 +82,57 @@ export async function addResumeAction(
 
   revalidatePath("/dashboard");
   return { status: "success", message: "Added to your library." };
+}
+
+const replaceSchema = addSchema.extend({
+  resumeId: z.coerce.number().int().positive(),
+});
+
+/**
+ * The dashboard's one-click "Replace this resume": uploads a new file and
+ * atomically swaps it in as primary in place of `resumeId`, rather than the
+ * three-step add → make primary → delete a student would otherwise need to
+ * do by hand. Only ever targets the caller's own resume (ownership is in
+ * replaceResume's WHERE clauses, same as every other action here).
+ */
+export async function replaceResumeAction(
+  _prev: LibraryActionState,
+  formData: FormData,
+): Promise<LibraryActionState> {
+  const student = await paidStudentOrNull();
+  if (!student) {
+    return { status: "error", message: "Complete your registration first." };
+  }
+
+  const parsed = replaceSchema.safeParse({
+    resumeBlobKey: formData.get("resumeBlobKey"),
+    resumeFilename: formData.get("resumeFilename"),
+    resumeBytes: formData.get("resumeBytes"),
+    resumeId: formData.get("resumeId"),
+  });
+  if (!parsed.success) {
+    return { status: "error", message: "Could not read that upload." };
+  }
+
+  try {
+    const replaced = await replaceResume(student.id, parsed.data.resumeId, {
+      blobKey: parsed.data.resumeBlobKey,
+      filename: parsed.data.resumeFilename,
+      bytes: parsed.data.resumeBytes,
+    });
+    if (!replaced) {
+      return {
+        status: "error",
+        message: `Your library holds ${MAX_ACTIVE_RESUMES} resumes at most. Delete one first (or this file is already in it).`,
+      };
+    }
+  } catch (error) {
+    console.error("[resume-library] replace failed:", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
+  }
+
+  revalidatePath("/dashboard");
+  return { status: "success", message: "Resume replaced." };
 }
 
 const targetSchema = z.object({

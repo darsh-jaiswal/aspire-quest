@@ -212,6 +212,40 @@ export async function ensurePrimaryResume(
   `);
 }
 
+/**
+ * Swap the primary resume for a freshly uploaded file, in the dashboard's
+ * one-click "Replace" action. Two statements, crash-safe in order (same
+ * discipline as ensurePrimaryResume — Neon HTTP has no transactions):
+ * (1) insert the new file as a normal capped, non-primary entry; (2) one
+ * atomic UPDATE that promotes it to primary and retires `resumeIdToReplace`
+ * in the same statement, so there's never a moment with two primaries. If
+ * step 1 is blocked (cap already at MAX_ACTIVE_RESUMES, or this exact file
+ * is already in the library) this returns null before touching anything —
+ * the student's current primary is untouched, not left in a half state. If
+ * a crash happens between the two statements, the old resume is still
+ * fully active and primary (nothing was deleted yet); the new upload just
+ * sits as a harmless non-primary extra the student can delete or promote
+ * themselves.
+ */
+export async function replaceResume(
+  studentId: number,
+  resumeIdToReplace: number,
+  file: { blobKey: string; filename: string; bytes: number },
+): Promise<ResumeRow | null> {
+  const inserted = await addResume(studentId, file);
+  if (!inserted) return null;
+
+  await db.execute(sql`
+    UPDATE resumes
+    SET is_primary = (id = ${inserted.id}),
+        deleted_at = CASE WHEN id = ${resumeIdToReplace} THEN now() ELSE deleted_at END
+    WHERE student_id = ${studentId} AND deleted_at IS NULL
+  `);
+
+  await syncPrimaryMirror(studentId);
+  return { ...inserted, isPrimary: true };
+}
+
 /** The application's snapshot resume, for scoring and the download route. */
 export async function getApplicationResume(
   openingId: number,
