@@ -80,7 +80,7 @@ export function AccountBadge() {
       >
         <span
           aria-hidden="true"
-          className="flex size-8 items-center justify-center rounded-full bg-navy text-[0.6875rem] font-semibold text-white transition-shadow hover:shadow"
+          className="flex size-8 items-center justify-center rounded-full bg-navy text-[0.6875rem] font-semibold text-on-navy transition-shadow hover:shadow"
         >
           {initials}
         </span>

@@ -1,3 +1,4 @@
+import Aurora from "@/components/Aurora";
 import { Container } from "@/components/ui/Container";
 import { MouseQuadrantTracker } from "@/components/ui/MouseQuadrantTracker";
 import { EDITION, SITE } from "@/lib/content";
@@ -14,8 +15,12 @@ export function Masthead() {
   return (
     <section
       aria-label={`${SITE.parentEvent} — ${SITE.name}`}
-      className="relative flex min-h-[24rem] flex-col justify-end overflow-hidden bg-ink text-paper [--color-focus:var(--color-paper)] sm:min-h-[28rem]"
+      className="relative flex min-h-[28rem] flex-col justify-end overflow-hidden bg-ink pb-8 text-paper [--color-focus:var(--color-paper)] sm:min-h-[34rem] sm:pb-12"
     >
+      <div aria-hidden="true" className="absolute inset-0">
+        <Aurora />
+      </div>
+
       <Container className="relative">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-t border-paper/20 pt-5">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">

@@ -17,7 +17,7 @@ import { consoleDestination } from "@/lib/console-destination";
  * state, so signed-out visitors (the majority on marketing pages) see no
  * flicker at all.
  */
-export function HeaderCta() {
+export function HeaderCta({ dark = false }: { dark?: boolean }) {
   const { isLoaded, isSignedIn, user } = useUser();
   const signedIn = isLoaded && isSignedIn;
   const console = signedIn ? consoleDestination(user.publicMetadata?.role) : null;
@@ -25,7 +25,7 @@ export function HeaderCta() {
   return (
     <ButtonLink
       href={console?.href ?? (signedIn ? "/dashboard" : "/register")}
-      variant="gradient"
+      variant={dark ? "gradient-violet" : "gradient"}
       className="px-4 py-2.5"
     >
       {console?.label ?? (signedIn ? "My application" : "For students")}

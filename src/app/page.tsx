@@ -1,6 +1,5 @@
 import { About } from "@/components/home/About";
 import { Faq } from "@/components/home/Faq";
-import { Hero } from "@/components/home/Hero";
 import { Masthead } from "@/components/home/Masthead";
 import { Pathways } from "@/components/home/Pathways";
 import { Process } from "@/components/home/Process";
@@ -12,22 +11,28 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 /** Fully static — the public site is CDN-served and costs no compute. */
 export const dynamic = "force-static";
 
+/**
+ * The home page opted into the dark "noir" scope by explicit request — see
+ * the `.aq-noir` class in globals.css. It's the only theme change that
+ * applies here: /register and /partners are the other two pages that opted
+ * in, and every other route stays the original light "Institutional
+ * Monochrome" default, unchanged.
+ */
 export default function HomePage() {
   return (
-    <>
+    <div className="aq-noir flex min-h-screen flex-col bg-surface text-slate">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-navy focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-navy focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-ink"
       >
         Skip to content
       </a>
 
       {/* The masthead is ink, and the header floats over it transparently. */}
-      <SiteHeader />
+      <SiteHeader overlay dark />
 
       <main id="main">
         <Masthead />
-        <Hero />
         <About />
         <Proof />
         <TalentPool />
@@ -37,6 +42,6 @@ export default function HomePage() {
       </main>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }

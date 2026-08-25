@@ -20,19 +20,30 @@ import { RecruiterCta } from "./RecruiterCta";
  * On a deployment with no Clerk keys the corner falls back to the two static
  * audience links and the badge doesn't render — the public site's
  * survive-without-environment guarantee holds.
+ *
+ * `dark` threads through to every child: which of these renders the borrowed
+ * violet-pink header identity vs the site's normal ink-ramp buttons.
  */
 const CLERK_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
-export function HeaderAccount() {
+export function HeaderAccount({ dark = false }: { dark?: boolean }) {
   if (!CLERK_CONFIGURED) {
     return (
       <>
         <div className="hidden sm:block">
-          <ButtonLink href="/partners" variant="gradient-soft" className="px-4 py-2.5">
+          <ButtonLink
+            href="/partners"
+            variant={dark ? "outline-invert" : "gradient-soft"}
+            className="px-4 py-2.5"
+          >
             For recruiters
           </ButtonLink>
         </div>
-        <ButtonLink href="/register" variant="gradient" className="px-4 py-2.5">
+        <ButtonLink
+          href="/register"
+          variant={dark ? "gradient-violet" : "gradient"}
+          className="px-4 py-2.5"
+        >
           For students
         </ButtonLink>
       </>
@@ -41,8 +52,8 @@ export function HeaderAccount() {
 
   return (
     <ClerkProvider>
-      <RecruiterCta />
-      <HeaderCta />
+      <RecruiterCta dark={dark} />
+      <HeaderCta dark={dark} />
       <AccountBadge />
     </ClerkProvider>
   );

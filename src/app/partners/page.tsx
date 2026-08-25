@@ -23,8 +23,11 @@ export default function PartnersPage() {
   );
 
   return (
-    <>
-      <SiteHeader />
+    // One of the three pages that opted into the dark "noir" scope by
+    // explicit request — see `.aq-noir` in globals.css. Every other page
+    // stays the original light default.
+    <div className="aq-noir flex min-h-screen flex-col bg-surface text-slate">
+      <SiteHeader dark />
 
       <main id="main">
         <Container className="grid gap-14 py-16 md:py-24 lg:grid-cols-12 lg:gap-16">
@@ -85,6 +88,6 @@ export default function PartnersPage() {
       </main>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }

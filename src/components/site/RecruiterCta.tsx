@@ -13,7 +13,7 @@ import { consoleDestination } from "@/lib/console-destination";
  * marketing pages never sees it pop in; it only ever disappears, and only
  * for the handful of console accounts.
  */
-export function RecruiterCta() {
+export function RecruiterCta({ dark = false }: { dark?: boolean }) {
   const { isLoaded, isSignedIn, user } = useUser();
   const hasConsole =
     isLoaded && isSignedIn && consoleDestination(user.publicMetadata?.role) !== null;
@@ -27,7 +27,11 @@ export function RecruiterCta() {
     // generation order, not by which one is more specific, so it isn't
     // reliable. A plain wrapper has no competing display utility to fight.
     <div className="hidden sm:block">
-      <ButtonLink href="/partners" variant="gradient-soft" className="px-4 py-2.5">
+      <ButtonLink
+        href="/partners"
+        variant={dark ? "outline-invert" : "gradient-soft"}
+        className="px-4 py-2.5"
+      >
         For recruiters
       </ButtonLink>
     </div>

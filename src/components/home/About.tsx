@@ -1,5 +1,6 @@
+import LineSidebar from "@/components/LineSidebar";
 import { Eyebrow, Section } from "@/components/ui/Section";
-import { LAST_EDITION, LAST_EDITION_EVENTS } from "@/lib/content";
+import { LAST_EDITION } from "@/lib/content";
 
 const DISTINCTIONS = [
   {
@@ -22,12 +23,12 @@ export function About() {
       <div className="grid gap-14 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
           <Eyebrow>What it is</Eyebrow>
-          <h2
+          <h1
             id="about-heading"
             className="mt-5 max-w-[14ch] text-h1 font-semibold"
           >
             A recruitment drive inside a technical fest.
-          </h2>
+          </h1>
           <p className="mt-6 max-w-[46ch] text-lede text-slate">
             {LAST_EDITION.label} ran {LAST_EDITION.days} days across{" "}
             {LAST_EDITION.dateLabel} and drew{" "}
@@ -40,40 +41,25 @@ export function About() {
         </div>
 
         <div className="lg:col-span-7">
-          <ol className="border-t border-hairline">
-            {DISTINCTIONS.map((item, index) => (
-              <li
-                key={item.title}
-                className="grid grid-cols-[2.5rem_1fr] gap-x-5 border-b border-hairline py-8"
-              >
-                <span
-                  data-figure
-                  aria-hidden="true"
-                  className="pt-1 text-sm font-semibold text-muted"
-                >
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <h3 className="text-h3 font-semibold">{item.title}</h3>
-                  <p className="mt-2.5 max-w-[62ch] text-slate">{item.body}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-10">
-            <Eyebrow>The rest of {LAST_EDITION.label}</Eyebrow>
-            <ul className="mt-4 flex flex-wrap gap-x-2 gap-y-2">
-              {LAST_EDITION_EVENTS.map((event) => (
-                <li
-                  key={event}
-                  className="rounded border border-hairline px-2.5 py-1.5 text-xs text-muted"
-                >
-                  {event}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* LineSidebar's proximity/marker mechanic, carrying a title +
+              full paragraph per item instead of just a label. */}
+          <LineSidebar
+            items={DISTINCTIONS.map((item) => ({
+              label: item.title,
+              body: item.body,
+            }))}
+            accentColor="#ec4899"
+            textColor="#f2f2ef"
+            markerColor="#3a3a3a"
+            showIndex
+            boldLabel
+            showMarker
+            proximityRadius={130}
+            maxShift={20}
+            markerLength={48}
+            itemGap={36}
+            fontSize={1.3}
+          />
         </div>
       </div>
     </Section>

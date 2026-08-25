@@ -9,55 +9,54 @@ import { PLACEMENTS, PLACEMENT_STATS, RECRUITERS } from "@/lib/content";
 export function Proof() {
   return (
     <div id="proof">
-      {/* Inverted band. The one place the page goes dark, so the outcomes land. */}
-      <section
-        aria-labelledby="outcomes-heading"
-        className="bg-navy py-16 text-white md:py-20"
-      >
+      {/* No longer an inverted band — the whole site is one flat black now,
+          so a light band here would be the one section that breaks that,
+          not a highlight. Same dark tokens as everywhere else. */}
+      <section aria-labelledby="outcomes-heading" className="py-16 md:py-20">
         <Container>
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
-              <p className="text-eyebrow font-semibold uppercase text-white/55">
+              <p className="text-eyebrow font-semibold uppercase text-muted">
                 Last edition
               </p>
               <h2
                 id="outcomes-heading"
-                className="mt-5 text-h2 font-semibold text-white"
+                className="mt-5 text-h2 font-semibold text-navy"
               >
                 Aspire Quest&nbsp;’26 ended in offers.
               </h2>
-              <p className="mt-4 max-w-[42ch] text-white/70">
+              <p className="mt-4 max-w-[42ch] text-slate">
                 Two third-year students were hired by Anantam Aerials and
                 Robotics on a paid internship with a Pre-Placement Offer track.
               </p>
             </div>
 
-            <ul className="grid gap-px overflow-hidden rounded border border-white/15 bg-white/15 sm:grid-cols-2 lg:col-span-8">
+            <ul className="grid gap-px overflow-hidden rounded border border-hairline bg-hairline sm:grid-cols-2 lg:col-span-8">
               {PLACEMENTS.map((placement) => (
-                <li key={placement.name} className="bg-navy p-7">
-                  <p className="text-h3 font-semibold text-white">
+                <li key={placement.name} className="bg-surface p-7">
+                  <p className="text-h3 font-semibold text-navy">
                     {placement.name}
                   </p>
-                  <p className="mt-1.5 text-sm text-white/60">
+                  <p className="mt-1.5 text-sm text-slate">
                     {placement.programme} · {placement.year}
                   </p>
 
-                  <dl className="mt-6 space-y-3 border-t border-white/15 pt-5 text-sm">
+                  <dl className="mt-6 space-y-3 border-t border-hairline pt-5 text-sm">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-white/55">Company</dt>
-                      <dd className="text-right font-semibold text-white">
+                      <dt className="text-muted">Company</dt>
+                      <dd className="text-right font-semibold text-navy">
                         {placement.company}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-white/55">Stipend</dt>
-                      <dd data-figure className="font-semibold text-white">
+                      <dt className="text-muted">Stipend</dt>
+                      <dd data-figure className="font-semibold text-navy">
                         {placement.stipend}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-white/55">PPO track</dt>
-                      <dd className="font-semibold text-amber">
+                      <dt className="text-muted">PPO track</dt>
+                      <dd className="font-semibold text-navy">
                         {placement.ppo ? "Eligible" : "—"}
                       </dd>
                     </div>

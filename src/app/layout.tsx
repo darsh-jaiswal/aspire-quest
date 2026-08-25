@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { Anton, Inter } from "next/font/google";
+import { Anton, Inter, Geist } from "next/font/google";
 import { DESCRIPTION, SITE, TAGLINE } from "@/lib/content";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 
 /* Two text weights — hierarchy comes from scale and tracking, not a weight
    ladder. See globals.css § Type. */
@@ -60,7 +64,7 @@ export default function RootLayout({
     <html
       lang="en-IN"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${anton.variable} h-full`}
+      className={cn("h-full", inter.variable, anton.variable, "font-sans", geist.variable)}
     >
       <body className="flex min-h-full flex-col bg-surface text-slate">
         {children}

@@ -25,10 +25,10 @@ export function SkeletonBars() {
 }
 
 /** Full public-page skeleton: real header and footer, pulsing content. */
-export function PublicPageSkeleton() {
-  return (
+export function PublicPageSkeleton({ dark = false }: { dark?: boolean }) {
+  const body = (
     <>
-      <SiteHeader />
+      <SiteHeader dark={dark} />
       <main id="main">
         <Container className="py-16 md:py-24">
           <p className="sr-only" role="status">
@@ -39,6 +39,14 @@ export function PublicPageSkeleton() {
       </main>
       <SiteFooter />
     </>
+  );
+
+  if (!dark) return body;
+
+  return (
+    <div className="aq-noir flex min-h-screen flex-col bg-surface text-slate">
+      {body}
+    </div>
   );
 }
 
