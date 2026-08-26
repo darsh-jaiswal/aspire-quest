@@ -95,7 +95,7 @@ export function Masthead() {
       </div>
 
       <Container className="relative">
-        <div className="flex flex-col gap-10 border-t border-paper/20 pt-6 lg:flex-row lg:items-end lg:justify-between lg:gap-14">
+        <div className="flex flex-col gap-10 pt-6 lg:flex-row lg:items-end lg:justify-between lg:gap-14">
           <div className="flex max-w-xl flex-col gap-6">
             <p className="text-display font-semibold text-paper">
               {SITE.name}
