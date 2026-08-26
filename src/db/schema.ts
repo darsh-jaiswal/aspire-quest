@@ -352,7 +352,7 @@ export const companies = pgTable(
     stipendMin: integer("stipend_min"),
     ppoTrack: boolean("ppo_track").notNull().default(false),
 
-    status: companyStatusEnum("status").notNull().default("lead"),
+    status: companyStatusEnum("status").notNull().default("interested"),
     source: companySourceEnum("source").notNull().default("self_serve"),
     notes: text("notes"),
 

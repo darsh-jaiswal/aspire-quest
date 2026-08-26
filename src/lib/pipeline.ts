@@ -13,11 +13,14 @@ export type CompanyStatus =
   | "committed"
   | "onboarded";
 
+/**
+ * Selectable in the UI (the per-card move-to select and the move action's
+ * validation). Lead/Contacted/Committed remain valid `CompanyStatus` values
+ * — Postgres enum values already written can't be dropped — but nothing in
+ * the app writes them anymore, so they're deliberately excluded here.
+ */
 export const COMPANY_STATUSES: readonly CompanyStatus[] = [
-  "lead",
-  "contacted",
   "interested",
-  "committed",
   "onboarded",
 ];
 

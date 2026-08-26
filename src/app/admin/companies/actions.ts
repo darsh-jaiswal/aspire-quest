@@ -16,13 +16,8 @@ export type ActionState =
 
 const companyId = z.coerce.number().int().positive();
 
-const statusSchema = z.enum([
-  "lead",
-  "contacted",
-  "interested",
-  "committed",
-  "onboarded",
-]);
+/** Only the two stages the UI still offers — see COMPANY_STATUSES in @/lib/pipeline. */
+const statusSchema = z.enum(["interested", "onboarded"]);
 
 /** Move a company along the pipeline. */
 export async function setCompanyStatus(
@@ -118,7 +113,9 @@ export async function importCompanies(
         contactName: row.contactName,
         contactEmail: row.contactEmail,
         contactPhone: row.contactPhone,
-        status: "lead" as const,
+        // "lead" is no longer reachable from the move-to select (see
+        // COMPANY_STATUSES) — importing here would strand the row.
+        status: "interested" as const,
         source: parsedSource.data,
       })),
     );
