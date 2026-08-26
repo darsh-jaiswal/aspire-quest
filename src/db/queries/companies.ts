@@ -4,7 +4,6 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
-  outreachLog,
   problemStatements,
   recruiterMemberships,
 } from "@/db/schema";
@@ -68,14 +67,6 @@ export async function getProblemStatements(companyId: number) {
     .from(problemStatements)
     .where(eq(problemStatements.companyId, companyId))
     .orderBy(desc(problemStatements.createdAt));
-}
-
-export async function getOutreach(companyId: number) {
-  return db
-    .select()
-    .from(outreachLog)
-    .where(eq(outreachLog.companyId, companyId))
-    .orderBy(desc(outreachLog.occurredAt));
 }
 
 /**

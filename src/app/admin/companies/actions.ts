@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { companies, outreachLog, recruiterMemberships } from "@/db/schema";
+import { companies, recruiterMemberships } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { parseCsvRecords, pick } from "@/lib/csv";
 
@@ -52,51 +52,6 @@ export async function setCompanyStatus(
   } catch (error) {
     console.error("[admin/companies] status update failed:", error);
     return { status: "error", message: "Could not update that company." };
-  }
-}
-
-const outreachSchema = z.object({
-  companyId,
-  channel: z.enum(["email", "call", "linkedin", "meeting", "referral", "other"]),
-  note: z.string().trim().min(3, "Write a short note.").max(2000),
-});
-
-/** Append to a company's outreach history. */
-export async function logOutreach(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const actor = await requireAdmin();
-
-  const parsed = outreachSchema.safeParse({
-    companyId: formData.get("companyId"),
-    channel: formData.get("channel"),
-    note: formData.get("note"),
-  });
-
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]!.message };
-  }
-
-  try {
-    await db.insert(outreachLog).values({
-      companyId: parsed.data.companyId,
-      actor: actor.userId,
-      channel: parsed.data.channel,
-      note: parsed.data.note,
-    });
-
-    // Touching the company keeps the pipeline sorted by real activity.
-    await db
-      .update(companies)
-      .set({ updatedAt: new Date() })
-      .where(eq(companies.id, parsed.data.companyId));
-
-    revalidatePath(`/admin/companies/${parsed.data.companyId}`);
-    return { status: "success", message: "Logged." };
-  } catch (error) {
-    console.error("[admin/companies] outreach log failed:", error);
-    return { status: "error", message: "Could not save that note." };
   }
 }
 

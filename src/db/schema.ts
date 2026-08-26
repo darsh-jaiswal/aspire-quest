@@ -63,15 +63,6 @@ export const companySourceEnum = pgEnum("company_source", [
   "research",
 ]);
 
-export const outreachChannelEnum = pgEnum("outreach_channel", [
-  "email",
-  "call",
-  "linkedin",
-  "meeting",
-  "referral",
-  "other",
-]);
-
 export const auditActionEnum = pgEnum("audit_action", [
   "view_student",
   "view_resume",
@@ -437,31 +428,6 @@ export const alumniReferrals = pgTable(
 );
 
 /* -------------------------------------------------------------------------
- * Outreach log — pipeline history
- * ---------------------------------------------------------------------- */
-
-export const outreachLog = pgTable(
-  "outreach_log",
-  {
-    id: serial("id").primaryKey(),
-    companyId: integer("company_id")
-      .notNull()
-      .references(() => companies.id, { onDelete: "cascade" }),
-    /** Clerk user id of the organiser who logged this. */
-    actor: varchar("actor", { length: 64 }).notNull(),
-    channel: outreachChannelEnum("channel").notNull(),
-    note: text("note").notNull(),
-    occurredAt: timestamp("occurred_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    index("outreach_log_company_idx").on(table.companyId),
-    index("outreach_log_occurred_idx").on(table.occurredAt),
-  ],
-);
-
-/* -------------------------------------------------------------------------
  * Job openings — recruiter-authored postings students apply to
  *
  * The marketplace flow: a recruiter publishes an opening, students apply
@@ -658,7 +624,6 @@ export const recruiterMemberships = pgTable(
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   problemStatements: many(problemStatements),
-  outreach: many(outreachLog),
   recruiters: many(recruiterMemberships),
   jobOpenings: many(jobOpenings),
 }));
@@ -713,13 +678,6 @@ export const problemStatementsRelations = relations(
     }),
   }),
 );
-
-export const outreachLogRelations = relations(outreachLog, ({ one }) => ({
-  company: one(companies, {
-    fields: [outreachLog.companyId],
-    references: [companies.id],
-  }),
-}));
 
 export const recruiterMembershipsRelations = relations(
   recruiterMemberships,
