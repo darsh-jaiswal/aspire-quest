@@ -15,7 +15,7 @@
 | GitHub | `darsh-jaiswal/aspire-quest`, private |
 | Vercel | project `aspire-quest`, Git-connected — **every push to `main` auto-deploys to production** |
 | Production | https://aspire-quest.vercel.app |
-| Neon Postgres | `neon-erin-mountain`, schema pushed, all 11 tables live (added `payment_orders`, `payment_events` 2026-08-23) |
+| Neon Postgres | `neon-erin-mountain`. **12 tables live in `public`, but `src/db/schema.ts` declares only 11.** `outreach_log` (and the `outreach_channel` enum) were removed from the schema by commit 69da019 while the empty objects were left in the live database **on purpose** — same pattern as the earlier bundles removal; that commit records the `DROP TABLE`/`DROP TYPE` as a separate, deliberate step. So do NOT treat this as drift to be tidied by `npm run db:push` — a push here silently performs that deferred DROP. `alumni_referrals` is a different case: the feature's UI went with commit 6d042e2 but the table AND its Drizzle declaration both remain. Both tables hold 0 rows. Earlier churn: added `payment_orders`, `payment_events` 2026-08-23; dropped `bundles`, `bundle_students` 2026-08-24. Storage 8.89 MiB of 500 MB as of 2026-08-26 — logical size per `pg_database_size`; Neon's billed figure also counts history retention, so the console reads higher |
 | Clerk | `clerk-cyan-fence`, keys set on all environments |
 | Vercel Blob | store `aspire-quest-resumes` (`store_3Ko4xHah6HiO4TPW`), `BLOB_READ_WRITE_TOKEN` set on all environments — resume upload confirmed working via a live browser test 2026-08-21 |
 | Upstash Redis | `UPSTASH_REDIS_REST_*` set on all environments — rate limiting no longer fails closed |
