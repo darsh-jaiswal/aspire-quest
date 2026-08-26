@@ -194,9 +194,9 @@ export const partnerSchema = z.object({
     .trim()
     .min(40, "Describe the work in at least a couple of sentences.")
     .max(4000),
-  focusArea: z.enum(focusCodes, {
-    message: "Select the focus area this role sits in.",
-  }),
+  focusArea: z
+    .array(z.enum(focusCodes))
+    .min(1, "Select at least one focus area."),
   /** Honeypot field, named to look plausible to a bot. */
   companyFax: honeypot,
 });

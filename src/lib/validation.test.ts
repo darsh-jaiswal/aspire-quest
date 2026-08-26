@@ -207,12 +207,25 @@ describe("partnerSchema", () => {
     problemTitle: "Autonomous indoor navigation",
     problemDescription:
       "We want candidates assessed on building a navigation stack for an indoor drone using onboard sensing only.",
-    focusArea: "robotics",
+    focusArea: ["robotics"],
     companyFax: "",
   };
 
   test("accepts a complete partner submission", () => {
     expect(partnerSchema.safeParse(valid).success).toBe(true);
+  });
+
+  test("accepts more than one focus area", () => {
+    const result = partnerSchema.safeParse({
+      ...valid,
+      focusArea: ["robotics", "aiml"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects no focus area selected", () => {
+    const result = partnerSchema.safeParse({ ...valid, focusArea: [] });
+    expect(result.success).toBe(false);
   });
 
   test("coerces the stipend to a number", () => {

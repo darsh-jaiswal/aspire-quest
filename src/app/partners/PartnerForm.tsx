@@ -7,7 +7,6 @@ import {
   Field,
   Honeypot,
   Input,
-  Select,
   Textarea,
   describedBy,
 } from "@/components/ui/Field";
@@ -24,6 +23,7 @@ export function PartnerForm() {
   // React 19 resets every field after a form action returns, so a failed
   // submit re-fills the form from the echoed values instead of wiping it.
   const values = state.status === "error" ? (state.values ?? {}) : {};
+  const focusAreas = state.status === "error" ? (state.focusAreas ?? []) : [];
 
   // The banner sits above the fold on a long form — bring it to the reader,
   // or a failed submit looks like nothing happened at all.
@@ -185,26 +185,23 @@ export function PartnerForm() {
 
           <Field
             label="Focus area"
-            htmlFor={fid("focusArea")}
+            htmlFor={fid("focusArea-core_dev")}
             error={errors.focusArea}
-            hint="The talent pool your openings draw from."
+            hint="The talent pool(s) your openings draw from. Pick as many as apply."
             required
           >
-            <Select
-              id={fid("focusArea")}
-              name="focusArea"
-              required
-              defaultValue={values.focusArea ?? ""}
-            >
-              <option value="" disabled>
-                Select
-              </option>
+            <div className="flex flex-col gap-2.5">
               {FOCUS_AREAS.map((area) => (
-                <option key={area.code} value={area.code}>
-                  {area.name}
-                </option>
+                <Checkbox
+                  key={area.code}
+                  id={fid(`focusArea-${area.code}`)}
+                  name="focusArea"
+                  value={area.code}
+                  defaultChecked={focusAreas.includes(area.code)}
+                  label={area.name}
+                />
               ))}
-            </Select>
+            </div>
           </Field>
         </div>
 

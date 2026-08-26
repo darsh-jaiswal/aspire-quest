@@ -14,6 +14,8 @@ export type PartnerState =
       errors?: Record<string, string>;
       /** What was submitted, echoed back so a failed submit never wipes the form (React 19 resets fields after every action). */
       values?: Record<string, string>;
+      /** Focus area is multi-select, so it's echoed separately from the scalar fields above. */
+      focusAreas?: string[];
     }
   | { status: "success"; company: string };
 
@@ -26,7 +28,6 @@ const ECHO_FIELDS = [
   "contactPhone",
   "stipendMin",
   "ppoTrack",
-  "focusArea",
   "problemTitle",
   "problemDescription",
 ] as const;
@@ -38,6 +39,10 @@ function echoValues(formData: FormData): Record<string, string> {
     if (typeof value === "string") values[field] = value;
   }
   return values;
+}
+
+function echoFocusAreas(formData: FormData): string[] {
+  return formData.getAll("focusArea").filter((v): v is string => typeof v === "string");
 }
 
 export async function submitPartner(
@@ -55,6 +60,7 @@ export async function submitPartner(
           ? "This form has been submitted several times from your connection. Please wait a few minutes."
           : "The form is temporarily unavailable. Please try again shortly.",
       values: echoValues(formData),
+      focusAreas: echoFocusAreas(formData),
     };
   }
 
@@ -68,7 +74,7 @@ export async function submitPartner(
     ppoTrack: formData.get("ppoTrack") === "on",
     problemTitle: formData.get("problemTitle"),
     problemDescription: formData.get("problemDescription"),
-    focusArea: formData.get("focusArea"),
+    focusArea: formData.getAll("focusArea"),
     companyFax: formData.get("companyFax") ?? "",
   });
 
@@ -78,6 +84,7 @@ export async function submitPartner(
       message: "Some details need fixing before we can record your interest.",
       errors: fieldErrors(parsed.error),
       values: echoValues(formData),
+      focusAreas: echoFocusAreas(formData),
     };
   }
 
@@ -102,16 +109,17 @@ export async function submitPartner(
       .returning({ id: companies.id });
 
     if (company) {
-      await db.insert(problemStatements).values({
-        companyId: company.id,
-        title: input.problemTitle,
-        description: input.problemDescription,
-        focusArea: input.focusArea as
-          | "core_dev"
-          | "aiml"
-          | "robotics"
-          | "other",
-      });
+      // One row per selected focus area, sharing the same problem statement —
+      // the schema keeps a single focus area per row, and a company already
+      // has a one-to-many relationship to its problem statements.
+      await db.insert(problemStatements).values(
+        input.focusArea.map((focusArea) => ({
+          companyId: company.id,
+          title: input.problemTitle,
+          description: input.problemDescription,
+          focusArea: focusArea as "core_dev" | "aiml" | "robotics" | "other",
+        })),
+      );
     }
 
     return { status: "success", company: input.companyName };
@@ -122,6 +130,7 @@ export async function submitPartner(
       message:
         "Something went wrong recording your details. Please try again in a moment.",
       values: echoValues(formData),
+      focusAreas: echoFocusAreas(formData),
     };
   }
 }
