@@ -126,6 +126,7 @@ void main() {
  *   iterations?: number,
  *   intensity?: number,
  *   bandWidth?: number,
+ *   paused?: boolean,
  * }} props
  */
 export default function ColorBends({
@@ -144,7 +145,8 @@ export default function ColorBends({
   noise = 0.15,
   iterations = 1,
   intensity = 1.5,
-  bandWidth = 6
+  bandWidth = 6,
+  paused = false
 }) {
   const containerRef = useRef(null);
   const rendererRef = useRef(null);
@@ -156,6 +158,12 @@ export default function ColorBends({
   const pointerTargetRef = useRef(new THREE.Vector2(0, 0));
   const pointerCurrentRef = useRef(new THREE.Vector2(0, 0));
   const pointerSmoothRef = useRef(8);
+  // Read inside the mount-only rAF loop below, so a pause/resume never tears
+  // down and rebuilds the WebGL context.
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -229,6 +237,15 @@ export default function ColorBends({
     }
 
     const loop = () => {
+      // Off-screen (scrolled away) or prefers-reduced-motion: skip the
+      // per-pixel shader draw entirely rather than just hiding the canvas —
+      // this is the expensive part, and it otherwise keeps costing a full
+      // frame of GPU time even when nobody can see it.
+      if (pausedRef.current) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
       const dt = clock.getDelta();
       const elapsed = clock.elapsedTime;
       material.uniforms.uTime.value = elapsed;

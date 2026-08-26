@@ -18,6 +18,7 @@ const TWO_PI = Math.PI * 2;
  * @property {string} [gradientFrom]
  * @property {string} [gradientTo]
  * @property {string} [glowColor]
+ * @property {boolean} [paused]
  */
 const DotField = memo(/** @param {DotFieldProps} props */ ({
   dotRadius = 1.5,
@@ -32,6 +33,7 @@ const DotField = memo(/** @param {DotFieldProps} props */ ({
   gradientFrom = 'rgba(168, 85, 247, 0.35)',
   gradientTo = 'rgba(180, 151, 207, 0.25)',
   glowColor = '#120F17',
+  paused = false,
   ...rest
 }) => {
   const canvasRef = useRef(null);
@@ -45,7 +47,7 @@ const DotField = memo(/** @param {DotFieldProps} props */ ({
   const engagement = useRef(0);
   const propsRef = useRef({});
   useEffect(() => {
-    propsRef.current = { dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly, bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo };
+    propsRef.current = { dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly, bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo, paused };
   });
   const rebuildRef = useRef(null);
   // useId() (not Math.random()) so the SSR-rendered id matches the client's
@@ -128,11 +130,20 @@ const DotField = memo(/** @param {DotFieldProps} props */ ({
     let frameCount = 0;
 
     function tick() {
+      const p = propsRef.current;
+
+      // Off-screen (scrolled away) or prefers-reduced-motion: skip the
+      // per-dot math and canvas redraw entirely — the expensive part —
+      // rather than just leaving the canvas as-is.
+      if (p.paused) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
       frameCount++;
       const dots = dotsRef.current;
       const m = mouseRef.current;
       const { w, h } = sizeRef.current;
-      const p = propsRef.current;
       const len = dots.length;
       const t = frameCount * 0.02;
 

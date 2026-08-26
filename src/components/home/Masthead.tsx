@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ColorBends from "@/components/ColorBends";
 import DotField from "@/components/DotField";
 import { ButtonLink } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import {
   type WaveParams,
   type WaveThemeKey,
 } from "./HeroDemoPanel";
+import { useMediaQuery } from "./useMediaQuery";
 
 /**
  * The masthead — the first screen. Deliberately holds no <h1>; the page's
@@ -28,6 +29,28 @@ export function Masthead() {
   const [params, setParams] = useState<WaveParams>(DEFAULT_WAVE_PARAMS);
   const activeColor = WAVE_THEMES[waveTheme].color;
 
+  // The wave/dot background is a real WebGL shader plus a full-canvas dot
+  // grid, both animating every frame — expensive enough that leaving them
+  // running after the visitor scrolls past costs frame budget site-wide for
+  // no visible benefit. Pause both once this section leaves the viewport,
+  // and skip them outright for a visitor who has asked for less motion.
+  const sectionRef = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(true);
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  const animationsPaused = !inView || prefersReducedMotion;
+
   const handleParamChange = (key: keyof WaveParams, value: number) => {
     setParams((prev) => ({ ...prev, [key]: value }));
   };
@@ -39,6 +62,7 @@ export function Masthead() {
 
   return (
     <section
+      ref={sectionRef}
       aria-label={`${SITE.parentEvent} — ${SITE.name}`}
       className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-ink pb-8 pt-28 text-paper [--color-focus:var(--color-paper)] sm:pb-12"
     >
@@ -66,6 +90,7 @@ export function Masthead() {
           glowRadius={160}
           sparkle={false}
           waveAmplitude={0}
+          paused={animationsPaused}
         />
         {/* Fades the glow band out toward the top, so it doesn't fight the
             header — `fadeTop` (visitor-adjustable in the demo panel) sets
@@ -90,6 +115,7 @@ export function Masthead() {
             iterations={params.iterations}
             intensity={params.intensity}
             scale={2}
+            paused={animationsPaused}
           />
         </div>
       </div>
