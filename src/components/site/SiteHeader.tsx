@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { SITE } from "@/lib/content";
 import { HeaderAccount } from "./HeaderAccount";
@@ -17,12 +14,11 @@ import { HeaderAccount } from "./HeaderAccount";
  * section already reserves that space itself — the homepage's Masthead is
  * bottom-anchored for exactly this.
  *
- * The dark branch is fixed, translucent, and detaches into a floating
- * rounded-rectangle bar past a small scroll threshold — matching React
- * Bits' navbar treatment rather than the site's usual monochrome-in-flow
- * chrome. Its fill is `bg-ink`, a fixed pole rather than a flippable token,
- * since this branch only ever renders on pages already wrapped in the dark
- * scope.
+ * The dark branch is fixed, translucent, and always the floating
+ * rounded-rectangle bar — matching React Bits' navbar treatment rather than
+ * the site's usual monochrome-in-flow chrome. Its fill is `bg-ink`, a fixed
+ * pole rather than a flippable token, since this branch only ever renders on
+ * pages already wrapped in the dark scope.
  */
 export function SiteHeader({
   overlay = false,
@@ -31,18 +27,6 @@ export function SiteHeader({
   overlay?: boolean;
   dark?: boolean;
 }) {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!dark) return;
-    function onScroll() {
-      setScrolled(window.scrollY > 24);
-    }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [dark]);
-
   if (!dark) {
     return (
       <header className="bg-surface">
@@ -86,23 +70,9 @@ export function SiteHeader({
 
   return (
     <>
-      <div
-        className={`fixed inset-x-0 top-0 z-50 flex justify-center transition-[padding] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          scrolled ? "px-3 pt-3 sm:px-6" : "px-0 pt-0"
-        }`}
-      >
-        <header
-          className={`w-full border backdrop-blur-2xl transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            scrolled
-              ? "max-w-5xl rounded-2xl border-white/8 bg-ink/45"
-              : "max-w-none rounded-none border-x-0 border-t-0 border-white/8 bg-ink/35"
-          }`}
-        >
-          <Container
-            className={`flex items-center justify-between gap-6 transition-[height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              scrolled ? "h-14" : "h-[4.5rem]"
-            }`}
-          >
+      <div className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-6">
+        <header className="w-full max-w-5xl rounded-2xl border border-white/8 bg-ink/45 backdrop-blur-2xl">
+          <Container className="flex h-14 items-center justify-between gap-6">
             <Link
               href="/"
               className="group flex items-center gap-3"
@@ -139,7 +109,7 @@ export function SiteHeader({
           </Container>
         </header>
       </div>
-      {overlay ? null : <div aria-hidden="true" className="h-[4.5rem]" />}
+      {overlay ? null : <div aria-hidden="true" className="h-[4.25rem]" />}
     </>
   );
 }
