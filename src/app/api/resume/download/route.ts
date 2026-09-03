@@ -1,8 +1,11 @@
 import { get } from "@vercel/blob";
-import { companiesStudentAppliedTo } from "@/db/queries/openings";
+import {
+  companiesStudentAppliedTo,
+  getOpeningCompany,
+} from "@/db/queries/openings";
 import { getApplicationResume } from "@/db/queries/resumes";
 import { getStudent } from "@/db/queries/students";
-import { canReadStudentResume } from "@/lib/access-policy";
+import { canReadResume } from "@/lib/access-policy";
 import { recordAudit } from "@/lib/audit";
 import { requireActor } from "@/lib/auth";
 
@@ -18,7 +21,11 @@ import { requireActor } from "@/lib/auth";
  *      the student applied to an opening of a company that recruiter is a
  *      member of — checked against the database, never against anything the
  *      client sent.
- *   3. Every successful read writes an audit row before the bytes go out.
+ *   3. An `openingId` scope narrows the read to ONE application's snapshot, and
+ *      the caller must be able to act for the company that OWNS that opening.
+ *      Standing over the student is NOT sufficient: a student who applied to
+ *      two companies granted each of them one CV, not both.
+ *   4. Every successful read writes an audit row before the bytes go out.
  *
  * Failure mode is 404 rather than 403 for recruiters: telling an unauthorised
  * caller that a given student id exists is itself a disclosure.
@@ -50,8 +57,31 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
+  // Every fact the decision needs is gathered FIRST, the decision is made
+  // once, and only then is a file selected. That order is deliberate: it is
+  // what stops the 404 from working as an oracle. Selecting the file first
+  // made a real application answer differently from an absent one, so a
+  // recruiter could sweep the sequential opening ids and read off which
+  // competitors each of their candidates had applied to.
+  const owning = openingId !== null ? await getOpeningCompany(openingId) : null;
+
   const student = await getStudent(studentId);
   if (!student) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  // Standing comes from the student's own application to one of the company's
+  // job openings — applying is itself the student's act of sharing. (Curated
+  // bundles, the second channel, were removed 2026-08-24.)
+  const permitted = await companiesStudentAppliedTo(studentId);
+
+  // Decided by the tested policy in @/lib/access-policy, not inline here.
+  const allowed = canReadResume(actor, {
+    scopedToOpening: openingId !== null,
+    owningCompanyId: owning?.companyId ?? null,
+    permittedCompanyIds: permitted,
+  });
+  if (!allowed) {
     return new Response("Not found", { status: 404 });
   }
 
@@ -60,15 +90,6 @@ export async function GET(request: Request): Promise<Response> {
     : null;
   const blobKey = snapshot?.blobKey ?? (openingId ? null : student.resumeBlobKey);
   if (!blobKey) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  // Decided by the tested policy in @/lib/access-policy, not inline here.
-  // Standing comes from the student's own application to one of the
-  // company's job openings — applying is itself the student's act of
-  // sharing. (Curated bundles, the second channel, were removed 2026-08-24.)
-  const permitted = await companiesStudentAppliedTo(studentId);
-  if (!canReadStudentResume(actor, permitted)) {
     return new Response("Not found", { status: 404 });
   }
 

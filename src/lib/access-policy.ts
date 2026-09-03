@@ -52,3 +52,45 @@ export function canReadStudentResume(
   if (actor.companyIds.length === 0) return false;
   return permittedCompanyIds.some((id) => actor.companyIds.includes(id));
 }
+
+/** The facts a resume read is decided on. Gathered by the caller, never inferred here. */
+export type ResumeReadRequest = {
+  /** True when an `openingId` narrowed the read to ONE application's snapshot. */
+  scopedToOpening: boolean;
+  /** Company owning that opening. Null when the opening does not exist, or the read is not scoped. */
+  owningCompanyId: number | null;
+  /** Companies the student has APPLIED to. */
+  permittedCompanyIds: readonly number[];
+};
+
+/**
+ * May this actor read a resume — whole-profile, or one application's snapshot?
+ *
+ * Two DIFFERENT questions hide in this route, and conflating them was a real
+ * disclosure bug (audited 2026-09-03):
+ *
+ *   - Whole-profile read (no openingId): may the actor see this student at all?
+ *     That is `canReadStudentResume` and nothing more.
+ *
+ *   - Application-scoped read (openingId given): the actor must ALSO be able to
+ *     act for the company owning that opening. Standing over the student is not
+ *     enough. A student who applied to two companies handed each of them one
+ *     CV, not both — so a recruiter at company A passing company B's openingId
+ *     must be refused even though A and B both hold standing on that student.
+ *
+ * Because the second rule is checked on the OPENING rather than the student, it
+ * also closes an enumeration channel: a recruiter cannot probe opening ids to
+ * discover which rivals a candidate applied to, since every id outside their own
+ * companies is refused identically whether or not an application exists.
+ */
+export function canReadResume(
+  actor: PolicyActor,
+  request: ResumeReadRequest,
+): boolean {
+  if (!canReadStudentResume(actor, request.permittedCompanyIds)) return false;
+  if (!request.scopedToOpening) return true;
+
+  // Scoped read: a missing opening is refused, never widened to a whole-profile read.
+  if (request.owningCompanyId === null) return false;
+  return canActForCompany(actor, request.owningCompanyId);
+}
