@@ -1,222 +1,52 @@
-# Aspire Quest
+# Campus Recruiting Platform
 
-The industry and careers platform for **Aspire Quest**, the recruitment track inside **Ambiora**, the annual technical fest of MPSTME, NMIMS Shirpur.
+I built a full recruiting platform for a college's campus placement event: partner companies post real openings, students register with a resume and get screened by CGPA/branch/focus area, and recruiters review exactly the applicants who applied to their roles, ranked by an AI-scored fit against each opening. This case study documents the real Aspire Quest build for Ambiora at MPSTME, NMIMS Shirpur. The underlying pattern (partner intake, student registration, resume-based screening, recruiter review) can also be adapted for other campus recruiting events.
 
-It does four things:
+## Who can use this
 
-1. Sells Aspire Quest to recruiters and alumni.
-2. Captures corporate partners and their problem statements.
-3. Collects student registrations with resumes and screens them by CGPA, branch and focus area.
-4. Runs the openings marketplace: recruiters post roles and review exactly the students who applied to them.
+- **University career fairs and placement cells** running any campus recruiting drive.
+- **Corporate campus-hiring programs** that need a structured intake and screening pipeline instead of an email inbox full of resumes.
+- **Hackathon-to-hiring pipelines**, where sponsor companies want to review participants against real openings, not just demo submissions.
+- **Professional bootcamps and certification programs** running a placement drive at the end of a cohort.
+- **Alumni-network job placement programs**, where an alumni association wants to run the same kind of structured matching between graduates and hiring partners.
 
----
+## What I built
 
-## Content is sourced, not invented
+Full-stack, end to end: a public marketing site, a gated student registration and payment flow, a recruiter portal, and an admin console, all on one Next.js codebase.
 
-**`src/lib/content.ts` is the single source of truth for every public-facing fact, and every figure in it is verified.** Unknowns (`Ambiora '27` dates, for example) are modelled explicitly as `null` / `"TBA"` and the UI degrades gracefully.
+- **Student side**: registration gated behind a verified Google/Microsoft sign-in (not a password), resume upload to private storage, a dashboard to track application status and manage up to 3 resume versions, and self-service withdrawal.
+- **Recruiter side**: a portal where a company posts an opening and reviews only the students who applied to it, ranked by an AI-generated fit score they can re-run.
+- **Admin side**: a screening console for reviewing every registration against CGPA/branch/focus-area filters, a company/partner pipeline board, bulk status-change emails, and an audit log of every resume access.
 
-This is not a style preference. The site is official-adjacent to NMIMS and is read by recruiters from Deloitte, Oracle and L&T. Plausible-looking placeholder numbers on a placement platform are a credibility and compliance problem. **If you add a field, add its source.**
+## Architecture
 
-Always write `₹` directly (UTF-8). Source material renders it as mojibake; the test suite and content lint guard against it leaking through.
+- **Framework**: Next.js 16 App Router, React 19, TypeScript, Tailwind v4.
+- **Database**: Neon Postgres + Drizzle ORM, pooled connection string (serverless-safe under registration-day load).
+- **Auth**: Clerk, scoped to admin and recruiter accounts only. Students never get an account; their identity is verified once at registration via Google/Microsoft sign-in, not a password.
+- **Resume storage**: Vercel Blob, private store, direct client uploads. Every read is access-logged; a resume is visible only to the admin team and the specific companies a student applied to.
+- **AI-powered applicant scoring**: the recruiter portal's "Re-run scoring" ranks applicants against an opening's requirements using the **Anthropic API** (`src/lib/scoring.ts`). Real, working use of Claude in production, not a demo.
+- **Payments**: Razorpay, integrated directly via their SDK (not a marketplace plugin), with webhook signature verification, a daily reconciliation cron that asks Razorpay directly about any payment stuck non-terminal, and a sweep cron for abandoned registrations.
+- **Rate limiting**: Upstash Redis, fails **closed** on purpose. Public forms reject rather than silently accept when the rate limiter is unreachable.
+- **Email**: Resend, with React Email templates for confirmations, reminders, and status-change notifications, all idempotency-keyed to prevent duplicate sends on retry.
+- **Testing**: Vitest for unit tests (validation, scoring, access policy, CSV export, withdrawal logic all have dedicated test files), Playwright for e2e (registration, payment, auth-gating, and a console-must-never-render-to-a-signed-out-visitor contract).
 
----
+## If you're short on time, look at these
 
-## Stack
+- [`src/lib/scoring.ts`](./src/lib/scoring.ts), the Anthropic API integration that ranks applicants against an opening.
+- [`payment-flow-review.md`](./payment-flow-review.md), a real design review that documents six actual defects an earlier draft of the payment flow had, and why each one was wrong, before any of it shipped.
+- [`src/lib/access-policy.ts`](./src/lib/access-policy.ts) and its test file, the actual authorization rule for who can view a student's resume.
+- [`docs/superpowers/specs/`](./docs/superpowers/specs) and [`docs/superpowers/plans/`](./docs/superpowers/plans), the actual written spec and implementation plan that drove this feature, before any code was written.
 
-| Concern | Choice |
-|---|---|
-| Framework | Next.js 16 App Router, React 19, TypeScript |
-| Styling | Tailwind CSS v4, design tokens in `src/app/globals.css` |
-| Database | Neon Postgres + Drizzle ORM (**pooled** connection string) |
-| Resume storage | Vercel Blob, **private**, direct client uploads |
-| Auth | Clerk — admin + recruiter only (**not yet wired**) |
-| Rate limiting | Upstash Redis |
-| Payments | Razorpay — direct SDK integration, not a Vercel Marketplace product (the payments category offers Stripe only) |
-| Hosting | Vercel, Fluid Compute. No `runtime = 'edge'` |
+## Built with Claude Code
 
-**Students sign in with Google or Microsoft, and registration is paid.** Registration
-is gated on a verified identity, so the email address on an application is one the
-applicant demonstrably controls rather than one they typed. Browsing the site never
-requires an account — only registering does. This reverses an earlier decision to
-have no student accounts, made before there was a plan to charge a registration fee;
-see `docs/superpowers/specs/2026-08-22-student-accounts-and-payment-design.md`. The
-Resend 100/day cap that partly motivated the original decision remains a live
-constraint on confirmation and reminder volume.
+This was built with a spec-first Claude Code workflow: a written spec and plan (see the two docs linked above) preceded implementation, not the other way around. That discipline shows up elsewhere too: [`src/lib/content.ts`](./src/lib/content.ts) enforces a rule that every public-facing fact must be sourced, and an unknown is modelled as `null`/`"TBA"`, never a plausible-looking invented number. This mirrors the practice in my other projects; see [`personal-claude-skill`](https://github.com/darsh-jaiswal/personal-claude-skill) for a Claude Code Skill I authored along the same lines.
 
-The fee itself (`REGISTRATION_FEE` in `src/lib/content.ts`) is currently a real,
-sourced figure — ₹100, a provisional amount set directly by the site owner to unblock
-building the flow, not yet organiser-confirmed as the final fee. It is modelled the
-same way `EDITION.startsAt` is: setting `amountPaise` back to `null` makes registration
-free again with no code change elsewhere. **Razorpay itself is not yet configured
-anywhere** (`NEXT_PUBLIC_RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` /
-`RAZORPAY_WEBHOOK_SECRET` are unset) — until an account exists and test-mode keys are
-set, registration with a fee configured fails closed with a clear "temporarily
-unavailable" message rather than silently accepting an unpayable application.
+## What I changed my mind about
 
----
+`payment-flow-review.md` is the artifact I'm most glad exists: a self-review that found six real defects in an earlier version of the payment design (races, an unsafe retry path, a reconciliation gap) and fixed each one before real money touched the system, not after. The instinct to write that review instead of shipping the first version that compiled is exactly the kind of thing you don't learn until you've been burned by not doing it once.
 
-## Getting started
+## Repository and configuration
 
-```bash
-npm install
-cp .env.example .env.local     # then fill it in, or:
-vercel env pull .env.local     # once the Marketplace integrations exist
+This is the original Aspire Quest application for Ambiora at MPSTME, NMIMS Shirpur. Real institutional details and the official NMIMS logo are retained with the owner's stated permission. This README was transferred from the Campus Recruiting Platform case study. The original project documentation is preserved in `PROJECT-README.md`.
 
-npm run dev
-```
-
-| Script | Purpose |
-|---|---|
-| `npm run dev` | Dev server |
-| `npm run build` | Production build |
-| `npm test` | Vitest suite |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint |
-| `npm run test:e2e` | Playwright — public site, console fail-closed, form contracts. Needs `CLERK_SECRET_KEY`: the registration tests sign in, and `e2e/global-setup.ts` creates the passwordless `+clerk_test` account they use |
-| `npm run db:generate` | Generate a migration from `src/db/schema.ts` |
-| `npm run db:push` | Push the schema to the database |
-| `npm run db:studio` | Drizzle Studio |
-
-### Environment status
-
-The public site renders without any environment at all — including on Vercel, where `src/proxy.ts` skips Clerk entirely when its keys are absent. (Without that guard the proxy throws `Missing publishableKey` on every request and takes the public pages down with it; development tolerates missing keys and hides this, production does not.) `/admin` and `/portal` still refuse to render, which is the intended direction.
-
-1. ✅ **Neon**, via the Vercel Marketplace → `DATABASE_URL` — provisioned, schema pushed (`neon-erin-mountain`), set on Production/Preview/Development automatically by the integration
-2. ⬜ **Vercel Blob**, private store → `BLOB_READ_WRITE_TOKEN` — resume upload will fail until this exists
-3. ⬜ **Upstash Redis** via the Marketplace → `UPSTASH_REDIS_REST_*` — public forms reject in production without it (see `src/lib/rate-limit.ts`; fails **closed**, on purpose)
-4. ⬜ **Clerk** → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` — `/admin` and `/portal` return 500 until this exists
-5. ⬜ **Razorpay** → `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` — no account exists yet. With `REGISTRATION_FEE.amountPaise` set (it is, currently ₹100), registration fails closed with a clear error until these are set; set `amountPaise` back to `null` in `src/lib/content.ts` to keep registration free in the meantime
-
-Local dev picks these up from `.env.local` (pulled via `vercel env pull .env.local`, gitignored). After a fresh `db:push` against a new database, run it non-interactively with `npm run db:push -- --force` if there's no TTY (CI, an agent) — safe on an empty database; there is nothing to lose data from yet.
-
----
-
-## Design direction — Institutional Monochrome
-
-Disciplined, Swiss-grid, and **black and white**. It must read as an official university placement platform and stay legible on a projector in a placement office.
-
-- **The palette has no hue, so the accent is inversion.** The one primary action per screen is a solid ink block on paper; everything secondary is paper with a hairline. Where the previous navy/amber system used colour to say "this one matters", this one flips the fill.
-- Ink `#0D0D0D` on paper `#F7F7F4` — not `#000` on `#FFF`, which vibrates on a projector and is tiring to read at length
-- Structure comes from thin rules and whitespace, never drop shadows or card grids
-- Inter, **two text weights** (400/600) — hierarchy from scale and tracking. 800 exists solely for the masthead wordmark, where the letterforms are artwork rather than a heading, and is not for body copy.
-- Tabular figures anywhere a number is presented as data
-- Uniform 4px radius
-- **Committed to light mode** for the body, painted explicitly; the masthead is the one deliberately dark surface
-
-Tokens live in `src/app/globals.css` under `@theme`. No hardcoded hex in components. The token *names* still read `navy` / `amber` from the previous palette — they are referenced across roughly forty components and renaming them would turn a palette change into a site-wide rewrite. They are semantic slots; only their values changed.
-
-Because hue is gone, **status must never be carried by colour alone.** Every success and error state pairs its treatment with wording, which is the stronger WCAG position regardless of palette.
-
-### The masthead
-
-The first screen is the only place on the site that spends any ink on spectacle. Three layers:
-
-1. **`MarkField`** — the fest's logo multiplied into a grid, every triangle turning to face the pointer. Texture, not subject. All the maths and DOM writes happen once per frame in a `requestAnimationFrame` callback, and the only thing written is a custom property driving a `rotate()`, so it stays on the compositor.
-2. **`AmbioraObject`** — the same mark built in three dimensions and draggable, lit by three hand-placed lights rather than an HDR environment map, because the CSP allows no external origins.
-3. **The wordmark**, set large along the bottom edge and cropped, so the screen reads as a fragment of something bigger than the viewport.
-
-The masthead is deliberately **not** an `<h1>`. The page's one first-level heading belongs to the section below it, which carries the actual proposition.
-
-Ambiora '27's creative theme is undecided, so palette, accent and the hero slot are swappable without a redesign.
-
----
-
-## Security
-
-This holds student PII (name, email, phone, **CGPA**) and resumes. Under the DPDP Act, CGPA and phone are personal data.
-
-- **Authorization is re-checked in every Server Action and route handler.** Middleware is a first gate, never the only one. A recruiter may read only candidates who applied to their own company's openings — enforced in the query, not the UI.
-- **Resumes** live in a private Blob store. No public URL exists. Reads go through short-TTL signed URLs minted server-side after an authz check, and every access writes an `audit_log` row.
-- **Uploads** are PDF-only and 5 MB-capped, enforced by the upload token itself (`src/app/api/resume/upload/route.ts`), not by client-side `accept`. Keys get a random suffix — never the user's filename.
-- **Validation**: Zod at every boundary (`src/lib/validation.ts`). Drizzle parameterized queries only.
-- **Rate limiting** on all three public forms, plus honeypot fields. Fails **closed** in production.
-- **Consent** is explicit and timestamped at registration.
-
-### Known cost: three.js on the masthead
-
-The draggable mark is real WebGL, and three.js is **229 KB gzipped** in its own chunk — well past the 150 KB landing-page JS budget this project otherwise works to. That budget is recorded here as broken rather than quietly dropped.
-
-What keeps it defensible:
-
-- The chunk is **code-split and lazy**, reached only through `next/dynamic` with `ssr: false`. It is not in the initial payload, `/` still prerenders as static, and nothing above the fold waits on it.
-- It never loads at all on a **coarse pointer** (a phone, where the drag has little to offer and the frame cost lands hardest) or under **`prefers-reduced-motion`**.
-- Machines without WebGL fall through to the flat SVG mark.
-
-So the budget holds for first paint and for every phone; it is desktop enhancement that exceeds it. Revisit if the masthead ever stops earning that.
-
-### Known gap: CSP is not nonce-based
-
-A per-request nonce requires middleware to inject it into the HTML, which forces every page to render dynamically — directly conflicting with keeping the public pages static and CDN-served at zero compute.
-
-The shipped CSP (`next.config.ts`) is the strictest *static-compatible* version: everything locked to `'self'` with no external origins, but `script-src` allows `'unsafe-inline'` because Next's hydration bootstrap is an inline script with no nonce to whitelist.
-
-**This is a deliberate trade-off, not an oversight.** Revisit it if the public pages ever become dynamic anyway.
-
-### Known advisory: `esbuild` via `drizzle-kit`
-
-`npm audit` reports 4 moderate advisories, all from `esbuild` transitively under `drizzle-kit`. `drizzle-kit` is a **dev-only CLI** used for migrations and never ships to production, and the advisory concerns esbuild's dev server. `npm audit fix --force` would downgrade `drizzle-kit` 0.45 → 0.18, a major regression. Left as-is deliberately.
-
----
-
-## Project status
-
-| Step | State |
-|---|---|
-| 1. Scaffold | Done — Vercel project linked, Git-connected, auto-deploys on push to `main` |
-| 2. Design tokens | Done |
-| 3. Schema & migrations | Done — `drizzle/0000_init.sql`, 9 tables, pushed to Neon (`neon-erin-mountain`) |
-| 4. Public marketing site | Done |
-| 5. Public intake forms | Done — student, partner, alumni. Database is live; resume upload still needs `BLOB_READ_WRITE_TOKEN` |
-| 6. Admin console | Done — screening, pipeline, alumni, audit, CSV in/out. (Candidate bundles removed 2026-08-24 — the openings marketplace is the only sharing channel.) Needs Clerk keys to run |
-| 7. Recruiter portal | Done — job openings, AI-ranked applicant review, interest marks, resume reads. Needs Clerk keys to run |
-| 8. Harden & verify | Partial — headers, validation/CSV/policy/interest tests done. E2E covers the public site, console fail-closed behaviour and the registration form's static contract (`npm run test:e2e`). Full-submission E2E, load and Lighthouse outstanding — the former needs Blob + a database configured |
-
-## Console access
-
-`/admin` is the organiser console; `/portal` is the recruiter view. Both sit behind Clerk.
-
-The two are separate route trees on purpose. `/portal` is gated by `requireRecruiter`, which rejects **admins as well as anonymous traffic**, so a recruiter never loads a page whose data functions were written assuming an organiser caller. Recruiter-facing reads live in `src/db/queries/openings.ts` and take the permitted company ids as a required argument — there is no read-by-id function a recruiter path could reach without its company filter.
-
-### What a recruiter can do
-
-- Post and manage **job openings** for their own company, and see the applicants to those openings, AI-ranked — and nothing else. Another company's opening returns 404, the same response as one that does not exist, so the portal cannot be used to discover that it exists.
-- Open an applicant's resume — the exact file snapshotted at apply time — through the same audited `/api/resume/download` handler the console uses.
-- Mark each applicant **interested / passed / not reviewed**. These writes re-derive company authority from the database rather than from the submitted form.
-
-Interest is a tri-state, not a boolean — "not yet reviewed" must never render as "everyone was rejected". The toggle lives in `src/lib/interest.ts` as pure functions shared by the action and the UI, so the two cannot disagree about what a click means.
-
-**Roles are not self-service.** Students sign in and get no role — that is what makes them a student rather than a denial (see `src/lib/auth.ts`). There is no route by which a signed-in account can grant *itself* `admin` or `recruiter`; recruiters are invited by an admin. To grant access, set the Clerk user's **`publicMetadata.role`** to `admin` or `recruiter`:
-
-```json
-{ "role": "admin" }
-```
-
-A recruiter additionally needs a row in `recruiter_memberships` linking them to their company. That link lives in **our** database, not in Clerk, because it decides which candidates they can see — see `src/lib/auth.ts`.
-
-Without Clerk keys every `/admin` route returns 500 rather than rendering. That is the intended failure direction; it is not a bug.
-
-### How authorization is enforced
-
-`src/proxy.ts` (Next 16's renamed middleware) is a **first gate only** — it knows nothing about roles. Every page, Server Action and route handler re-checks through `src/lib/auth.ts`, so a route added without a matcher entry still fails closed.
-
-The actual decisions live in `src/lib/access-policy.ts` as pure functions with no I/O, covered by tests including explicit fail-closed cases. The rules:
-
-- An admin may read anything.
-- A recruiter may read a candidate **only** if that candidate applied to an opening of a company the recruiter is a member of — applying is the student's act of sharing.
-- A recruiter with no membership can read nothing.
-- Unauthorised resume requests return **404, not 403** — confirming a student id exists is itself a disclosure.
-
-### Blocked on the organiser
-
-- Ambiora '27 dates (the site ships date-driven and defaults to TBA)
-- Full-resolution photos from the RAW team, or an Instagram export
-- Whether this lives on an `nmims.edu` subdomain or its own domain (logo use itself is now approved — see `public/brand/nmims-logo.png`, used in `SiteHeader`)
-- The alumni CSV and the Placement Cell recruiter list
-
-**Branding caution:** this is official-adjacent. Institutional logo use and any `nmims.edu` domain need campus sign-off before going public.
-
----
-
-## Superseded work
-
-`.superseded/platform-signage/` holds an earlier draft built to a different design direction ("Platform Signage" — transit-signage vernacular) with invented placeholder content. It is kept for reference only. **Do not copy content out of it** — its figures are not sourced.
+Production environment files, provider credentials, uploaded resumes, and database exports are excluded. `.env.example` lists configuration names and placeholders only. Supply your own server-side credentials to run an independent instance; do not commit private environment values.

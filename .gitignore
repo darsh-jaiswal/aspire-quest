@@ -54,3 +54,15 @@ next-env.d.ts
 .vercel
 
 .gstack/
+
+# Private credentials and local-only configuration
+.env
+.env.*
+!.env.example
+secrets.local.js
+*.pem
+*.key
+credentials.json
+service-account*.json
+*.sqlite
+*.db
